@@ -21,12 +21,13 @@ first.
 1. Turn on the SDS150's Bluetooth.
 2. Open ScanPad and tap **Connect**, then pick **SDS150**.
 3. Tap a pad. The radio tunes to it and holds; the pad it is on glows.
-4. **Edit** to set a pad's name, frequency and color. **Done** when finished.
-5. **Export** saves your pads to `scanpad.json`; **Import** loads them on
+4. **▶ Scan** releases the hold and sends the radio back to scanning.
+5. **Edit** to set a pad's name, frequency and color. **Done** when finished.
+6. **Export** saves your pads to `scanpad.json`; **Import** loads them on
    another device.
 
 On a keyboard the grid is `1 2 3 4 / Q W E R / A S D F / Z X C V`, and the
-arrow keys switch banks.
+arrow keys switch banks. Space resumes scanning.
 
 ## Files
 

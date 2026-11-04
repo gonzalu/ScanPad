@@ -103,6 +103,11 @@ export class SDS150 {
     return this.send(`QSH,${String(mhzToSteps(mhz)).padStart(8, '0')}`);
   }
 
+  // Leave hold and go back to scanning the favorites lists.
+  resumeScan() {
+    return this.send('JPM,SCN_MODE,0');
+  }
+
   _frame(cmd) {
     const text = new TextEncoder().encode(cmd.endsWith('\r') ? cmd : cmd + '\r');
     this.seq = (this.seq + 1) & 0xffff;

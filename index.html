@@ -44,6 +44,7 @@
   <h1>SCANPAD</h1>
   <button id="connect">Connect</button>
   <span id="status" style="color:var(--dim)">Not connected</span>
+  <button id="scan">▶ Scan</button>
   <span class="spacer"></span>
   <button id="edit">Edit</button>
   <button id="export">Export</button>
@@ -133,6 +134,7 @@ const radio = new SDS150({
   },
   onLine(line) {
     if (/^QSH,(NG|ERR)/.test(line)) toast(`Radio rejected that frequency (${line})`);
+    if (/^JPM,(NG|ERR)/.test(line)) toast(`Radio wouldn't go back to scan (${line})`);
     const scr = parseScreen(line);
     if (!scr) return;
     liveSteps = mhzToSteps(scr.mhz);
@@ -151,6 +153,11 @@ $('connect').onclick = async () => {
     // Keep the reason on screen (in the display strip) so it can be read off an iPad.
     if (e.name !== 'NotFoundError') { $('lcdName').textContent = 'Connect failed'; $('lcdSub').textContent = e.message || String(e); }
   }
+};
+
+$('scan').onclick = async () => {
+  if (!radio.connected) return toast('Connect to the SDS150 first');
+  try { await radio.resumeScan(); } catch (e) { toast(`Send failed: ${e.message || e}`); }
 };
 
 function renderBanks() {
@@ -260,6 +267,7 @@ document.addEventListener('keydown', e => {
   if ($('dlg').open || e.ctrlKey || e.metaKey || e.altKey) return;
   const i = KEYS.indexOf(e.key.toLowerCase());
   if (i >= 0) { e.preventDefault(); press(i); }
+  else if (e.key === ' ') { e.preventDefault(); $('scan').click(); }
   else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
     const d = e.key === 'ArrowLeft' ? -1 : 1;
     state.bank = BANKS[(BANKS.indexOf(state.bank) + d + BANKS.length) % BANKS.length];
