@@ -35,16 +35,36 @@ export class SDS150 {
       filters: [{ namePrefix: 'SDS' }, { namePrefix: 'Uniden' }, { services: [SERVICE] }],
       optionalServices: [SERVICE, ...STD_SERVICES],
     });
-    this.device.ongattserverdisconnected = () => { this.chr = null; this.onState('disconnected'); };
+    // Drops while connecting are expected (the radio bonds, then drops and
+    // reconnects), so only report a disconnect once the link is up.
+    this.device.ongattserverdisconnected = () => {
+      const wasUp = !!this.chr;
+      this.chr = null;
+      if (wasUp) this.onState('disconnected');
+    };
     this.onState('connecting');
-    // The radio sometimes drops the very first link while it settles; retry once.
-    let server;
-    for (let attempt = 1; ; attempt++) {
-      server = await step('connecting', () => this.device.gatt.connect());
-      await new Promise(r => setTimeout(r, 2000));
-      if (this.device.gatt.connected) break;
-      if (attempt === 2) throw new Error('The radio dropped the link twice while settling');
+    let lastError;
+    for (let attempt = 1; attempt <= 4; attempt++) {
+      try {
+        await this._open();
+        this.onState('connected');
+        return;
+      } catch (e) {
+        lastError = e;
+        if (this.device.gatt.connected) this.device.gatt.disconnect();
+        await new Promise(r => setTimeout(r, 1000));
+      }
     }
+    this.onState('disconnected');
+    // An SDS150 only accepts a device it hasn't seen before while it is in pairing mode.
+    throw new Error('The radio keeps dropping the link. If this device is new to it: on the SDS150 press MENU → Settings → Bluetooth Options → Pairing, then Connect while it shows "Processing". '
+      + `(last error: ${lastError && lastError.message || lastError})`);
+  }
+
+  async _open() {
+    const server = await step('connecting', () => this.device.gatt.connect());
+    await new Promise(r => setTimeout(r, 2000));
+    if (!this.device.gatt.connected) throw new Error('dropped while settling');
     // Each step names itself on failure so a phone/iPad user can report it.
     const svc = await step('finding the Uniden service', () => server.getPrimaryService(SERVICE));
     const chr = await step('finding the command channel', async () => {
@@ -52,7 +72,9 @@ export class SDS150 {
       catch { return (await svc.getCharacteristics()).find(c => c.properties.notify); }
     });
     if (!chr) throw new Error('The radio has no command channel');
-    chr.addEventListener('characteristicvaluechanged', ev => this._onNotify(ev));
+    this._boundNotify = this._boundNotify || (ev => this._onNotify(ev));
+    chr.removeEventListener('characteristicvaluechanged', this._boundNotify);
+    chr.addEventListener('characteristicvaluechanged', this._boundNotify);
     // iOS (Bluefy) can refuse the first subscribe while it finishes bonding.
     await step('subscribing to replies', async () => {
       for (let attempt = 1; ; attempt++) {
@@ -61,7 +83,6 @@ export class SDS150 {
       }
     });
     this.chr = chr;
-    this.onState('connected');
   }
 
   disconnect() {
