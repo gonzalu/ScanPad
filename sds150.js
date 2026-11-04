@@ -40,15 +40,26 @@ export class SDS150 {
     // The radio sometimes drops the very first link while it settles; retry once.
     let server;
     for (let attempt = 1; ; attempt++) {
-      server = await this.device.gatt.connect();
+      server = await step('connecting', () => this.device.gatt.connect());
       await new Promise(r => setTimeout(r, 2000));
       if (this.device.gatt.connected) break;
       if (attempt === 2) throw new Error('The radio dropped the link twice while settling');
     }
-    const svc = await server.getPrimaryService(SERVICE);
-    const chr = await svc.getCharacteristic(CHAR);
+    // Each step names itself on failure so a phone/iPad user can report it.
+    const svc = await step('finding the Uniden service', () => server.getPrimaryService(SERVICE));
+    const chr = await step('finding the command channel', async () => {
+      try { return await svc.getCharacteristic(CHAR); }
+      catch { return (await svc.getCharacteristics()).find(c => c.properties.notify); }
+    });
+    if (!chr) throw new Error('The radio has no command channel');
     chr.addEventListener('characteristicvaluechanged', ev => this._onNotify(ev));
-    await chr.startNotifications();
+    // iOS (Bluefy) can refuse the first subscribe while it finishes bonding.
+    await step('subscribing to replies', async () => {
+      for (let attempt = 1; ; attempt++) {
+        try { return await chr.startNotifications(); }
+        catch (e) { if (attempt === 3 || !this.device.gatt.connected) throw e; await new Promise(r => setTimeout(r, 1000)); }
+      }
+    });
     this.chr = chr;
     this.onState('connected');
   }
@@ -129,6 +140,11 @@ export class SDS150 {
       if (line.trim()) this.onLine(line);
     }
   }
+}
+
+async function step(what, fn) {
+  try { return await fn(); }
+  catch (e) { throw new Error(`Failed ${what}: ${e.message || e}`); }
 }
 
 export function mhzToSteps(mhz) {

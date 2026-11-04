@@ -146,7 +146,11 @@ const radio = new SDS150({
 $('connect').onclick = async () => {
   if (radio.connected) return radio.disconnect();
   try { await radio.connect(); }
-  catch (e) { $('status').textContent = 'Not connected'; if (e.name !== 'NotFoundError') toast(e.message || String(e)); }
+  catch (e) {
+    $('status').textContent = 'Not connected';
+    // Keep the reason on screen (in the display strip) so it can be read off an iPad.
+    if (e.name !== 'NotFoundError') { $('lcdName').textContent = 'Connect failed'; $('lcdSub').textContent = e.message || String(e); }
+  }
 };
 
 function renderBanks() {
