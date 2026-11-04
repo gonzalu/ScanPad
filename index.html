@@ -75,7 +75,9 @@
 <div id="toast"></div>
 
 <script type="module">
-import { SDS150, mhzToSteps, parseScreen } from './sds150.js';
+// Bump ?v= whenever sds150.js changes: browsers (Bluefy especially) keep the
+// old module for up to 10 minutes otherwise, and pair it with the new page.
+import { SDS150, mhzToSteps, parseScreen } from './sds150.js?v=2';
 
 const BANKS = ['A', 'B', 'C', 'D'];
 const COLORS = ['#ff5a36', '#ffb02e', '#ffe04a', '#5ad16b', '#2ec4b6', '#3a8dff', '#9b6bff', '#ff5ab4', '#c8c8c8'];
