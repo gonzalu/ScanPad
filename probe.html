@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ScanPad Probe</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; padding: 16px; background: #111; color: #ddd; font: 14px/1.4 system-ui, sans-serif; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  p.note { color: #999; margin: 0 0 12px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  button { background: #2a2a2a; color: #eee; border: 1px solid #444; border-radius: 6px; padding: 8px 14px; font-size: 14px; cursor: pointer; }
+  button:hover { background: #333; }
+  button:disabled { opacity: .4; cursor: default; }
+  input { flex: 1; min-width: 200px; background: #000; color: #ffd24a; border: 1px solid #444; border-radius: 6px; padding: 8px; font: 14px ui-monospace, monospace; }
+  #status { font-weight: 600; }
+  #log { background: #000; border: 1px solid #333; border-radius: 6px; padding: 8px; height: 60vh; overflow: auto; font: 12px/1.45 ui-monospace, monospace; white-space: pre-wrap; word-break: break-all; }
+  .tx { color: #6cf; } .rx { color: #ffd24a; } .hex { color: #666; } .sys { color: #aaa; } .err { color: #f66; }
+</style>
+</head>
+<body>
+<h1>ScanPad Probe</h1>
+<p class="note">Close AlphaScan / U/AWARE first: the SDS150 accepts only one Bluetooth connection at a time.</p>
+
+<div class="row">
+  <button id="connect">Connect</button>
+  <button id="disconnect" disabled>Disconnect</button>
+  <span id="status">Not connected</span>
+</div>
+<div class="row">
+  <button class="cmd" data-cmd="MDL" disabled>MDL (model)</button>
+  <button class="cmd" data-cmd="VER" disabled>VER (firmware)</button>
+  <button class="cmd" data-cmd="GST" disabled>GST (screen)</button>
+  <button class="cmd" data-cmd="STS" disabled>STS (status)</button>
+</div>
+<div class="row">
+  <input id="raw" placeholder="Any command, e.g. MDL" disabled>
+  <button id="send" disabled>Send</button>
+  <label><input type="checkbox" id="showhex" style="min-width:0;flex:none"> show hex</label>
+</div>
+<div class="row">
+  <input id="mhz" value="470.8625" style="flex:none;width:120px" disabled> MHz
+  <select id="mod" disabled style="background:#000;color:#ffd24a;border:1px solid #444;border-radius:6px;padding:8px">
+    <option>AUTO</option><option>NFM</option><option>FM</option><option>AM</option>
+  </select>
+</div>
+<div class="row" id="tunes"></div>
+<div id="log"></div>
+
+<script>
+// Learned from AlphaScan's public web bundle (alphascan.app):
+//   one custom GATT service + one characteristic used for both write and notify.
+//   Each ASCII command (ending in \r) is wrapped in a "PT" frame:
+//     09 'P' 'T' 00 LEN | SEQ(2) [CLOCK(2)] C0 00 N 81 <ascii...> | SUM(2)
+//   LEN = payload length, N = ascii length + 1, SUM = 16-bit sum of the payload.
+//   "KEY,OK" is the only command sent without the clock field.
+// Replies come back in the same frame shape; from byte 7 on the payload holds
+// blocks of TYPE(1) LEN(2) DATA, where TYPE C0 is text and A1 is audio.
+const SERVICE = '3a5b9d10-f2ec-4f5c-bb2e-2f1a8d98a0a6';
+const CHAR = 'ab8c17d4-c1c5-4c91-8c56-7d01954c471e';
+const STD_SERVICES = ['00001800-0000-1000-8000-00805f9b34fb', '00001801-0000-1000-8000-00805f9b34fb', '0000180a-0000-1000-8000-00805f9b34fb'];
+
+const $ = id => document.getElementById(id);
+const logEl = $('log');
+let device = null, chr = null, seq = 0, rxBuf = new Uint8Array(0), writeChain = Promise.resolve();
+
+function log(text, cls = 'sys') {
+  const line = document.createElement('div');
+  line.className = cls;
+  line.textContent = `${new Date().toLocaleTimeString()}  ${text}`;
+  logEl.appendChild(line);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+const hex = bytes => Array.from(bytes, b => b.toString(16).padStart(2, '0')).join(' ');
+
+function frame(cmd) {
+  const text = new TextEncoder().encode(cmd.endsWith('\r') ? cmd : cmd + '\r');
+  seq = (seq + 1) & 0xffff;
+  const clock = Date.now() & 0xffff;
+  const p = [seq >> 8, seq & 255];
+  if (cmd.toUpperCase() !== 'KEY,OK') p.push(clock >> 8, clock & 255);
+  p.push(0xc0, 0x00, (text.length + 1) & 255, 0x81, ...text);
+  let sum = 0;
+  for (const b of p) sum = (sum + b) & 0xffff;
+  return new Uint8Array([0x09, 0x50, 0x54, 0x00, p.length & 255, ...p, sum >> 8, sum & 255]);
+}
+
+function onNotify(ev) {
+  const v = ev.target.value;
+  const chunk = new Uint8Array(v.buffer, v.byteOffset, v.byteLength);
+  const merged = new Uint8Array(rxBuf.length + chunk.length);
+  merged.set(rxBuf); merged.set(chunk, rxBuf.length);
+  rxBuf = merged;
+  drainFrames();
+}
+
+function drainFrames() {
+  for (;;) {
+    const start = rxBuf.findIndex((b, i) => b === 0x09 && rxBuf[i + 1] === 0x50 && rxBuf[i + 2] === 0x54);
+    if (start < 0) {
+      if (rxBuf.length) { plainText(rxBuf); rxBuf = new Uint8Array(0); }
+      return;
+    }
+    if (start > 0) { plainText(rxBuf.slice(0, start)); rxBuf = rxBuf.slice(start); }
+    if (rxBuf.length < 5) return;
+    const len = (rxBuf[3] << 8) | rxBuf[4];
+    const total = 5 + len + 2;
+    if (len < 2 || len > 4096) { rxBuf = rxBuf.slice(1); continue; }
+    if (rxBuf.length < total) return;
+    const f = rxBuf.slice(0, total);
+    rxBuf = rxBuf.slice(total);
+    let sum = 0;
+    for (let i = 5; i < 5 + len; i++) sum = (sum + f[i]) & 0xffff;
+    const ok = sum === ((f[total - 2] << 8) | f[total - 1]);
+    if ($('showhex').checked) log(`RX frame ${ok ? '' : '(BAD SUM) '}${hex(f)}`, 'hex');
+    let text = '';
+    for (let r = 7; r + 3 <= total - 2;) {
+      const type = f[r], n = (f[r + 1] << 8) | f[r + 2], d = f.subarray(r + 3, r + 3 + n);
+      if (r + 3 + n > total - 2) break;
+      if (type === 0xc0) text += new TextDecoder().decode(d[0] === 0x81 ? d.subarray(1) : d);
+      // 0xAF arrives ~10x a second, 0xA0/0xA2 now and then; only worth seeing in hex mode.
+      else if (type !== 0xa1 && $('showhex').checked) log(`RX block type 0x${type.toString(16)} (${n} bytes)`, 'hex');
+      r += 3 + n;
+    }
+    // Screen text carries icon glyph bytes (signal bars, battery); show them as spaces.
+    text = text.replace(/[^\x20-\x7e\r\n]/g, ' ');
+    for (const line of text.split(/[\r\n]+/)) if (line.trim()) log(`RX  ${line}`, 'rx');
+  }
+}
+
+function plainText(bytes) {
+  const s = new TextDecoder().decode(bytes).trim();
+  if (s) log(`RX (unframed)  ${s}`, 'rx');
+}
+
+async function send(cmd) {
+  if (!chr) return;
+  const bytes = frame(cmd);
+  log(`TX  ${cmd}`, 'tx');
+  if ($('showhex').checked) log(`TX frame ${hex(bytes)}`, 'hex');
+  const write = () => chr.writeValueWithoutResponse ? chr.writeValueWithoutResponse(bytes) : chr.writeValue(bytes);
+  writeChain = writeChain.then(write, write).catch(e => log(`Send failed: ${e.message || e}`, 'err'));
+  await writeChain;
+}
+
+function setConnected(on, label) {
+  $('status').textContent = label;
+  $('connect').disabled = on;
+  $('disconnect').disabled = !on;
+  for (const el of document.querySelectorAll('.cmd, #raw, #send, #mhz, #mod, #tunes button')) el.disabled = !on;
+}
+
+// No published spec pins down the SDS150's QSH frequency field, so offer the
+// candidate layouts side by side; the one the radio answers "QSH,OK" to wins.
+const TUNE_VARIANTS = [
+  ['A', hz => `QSH,${String(Math.round(hz / 100)).padStart(8, '0')}`],
+  ['B', (hz, mod) => `QSH,${String(Math.round(hz / 100)).padStart(8, '0')},,${mod}`],
+  ['C', hz => `QSH,${Math.round(hz)}`],
+  ['D', hz => `QSH,${(hz / 1e6).toFixed(4).padStart(9, '0')}`],
+];
+function renderTunes() {
+  const hz = parseFloat($('mhz').value) * 1e6;
+  const box = $('tunes');
+  box.replaceChildren();
+  for (const [name, build] of TUNE_VARIANTS) {
+    const b = document.createElement('button');
+    const cmd = Number.isFinite(hz) ? build(hz, $('mod').value) : '';
+    b.textContent = `${name}: ${cmd || '(bad MHz)'}`;
+    b.disabled = !chr || !cmd;
+    b.onclick = () => send(cmd);
+    box.appendChild(b);
+  }
+}
+$('mhz').oninput = $('mod').onchange = renderTunes;
+renderTunes();
+
+async function connect() {
+  if (!navigator.bluetooth) { log('This browser has no Web Bluetooth. Use Chrome or Edge on the PC, or Bluefy on the iPad.', 'err'); return; }
+  try {
+    setConnected(false, 'Choosing device…');
+    device = await navigator.bluetooth.requestDevice({
+      filters: [{ namePrefix: 'SDS' }, { namePrefix: 'Uniden' }, { services: [SERVICE] }],
+      optionalServices: [SERVICE, ...STD_SERVICES],
+    });
+    log(`Selected ${device.name || device.id}`);
+    device.ongattserverdisconnected = () => { chr = null; setConnected(false, 'Disconnected'); log('Scanner disconnected', 'err'); };
+    setConnected(false, 'Connecting…');
+    // The radio sometimes drops the very first link while it settles; retry once.
+    let server;
+    for (let attempt = 1; ; attempt++) {
+      server = await device.gatt.connect();
+      log('GATT connected; letting the radio settle 2 s');
+      await new Promise(r => setTimeout(r, 2000));
+      if (device.gatt.connected) break;
+      if (attempt === 2) throw new Error('Radio dropped the link twice while settling');
+      log('Dropped while settling; retrying');
+    }
+    const services = await server.getPrimaryServices();
+    log(`Services: ${services.map(s => s.uuid).join(', ')}`);
+    const svc = services.find(s => s.uuid === SERVICE);
+    if (!svc) throw new Error('Uniden service not found');
+    const chars = await svc.getCharacteristics();
+    for (const c of chars) {
+      const p = c.properties;
+      const props = ['read', 'write', 'writeWithoutResponse', 'notify', 'indicate'].filter(k => p[k]).join(', ');
+      log(`Characteristic ${c.uuid}  [${props}]`);
+    }
+    chr = chars.find(c => c.uuid === CHAR) || chars.find(c => c.properties.notify);
+    if (!chr) throw new Error('Command characteristic not found');
+    chr.addEventListener('characteristicvaluechanged', onNotify);
+    await chr.startNotifications();
+    log(`Listening on ${chr.uuid}`);
+    setConnected(true, `Connected: ${device.name || 'scanner'}`);
+    await send('MDL');
+    await send('VER');
+  } catch (e) {
+    log(`Connect failed: ${e.message || e}`, 'err');
+    setConnected(false, 'Not connected');
+  }
+}
+
+$('connect').onclick = connect;
+$('disconnect').onclick = () => device && device.gatt.connected && device.gatt.disconnect();
+for (const b of document.querySelectorAll('.cmd')) b.onclick = () => send(b.dataset.cmd);
+$('send').onclick = () => { const v = $('raw').value.trim(); if (v) send(v); };
+$('raw').onkeydown = e => { if (e.key === 'Enter') $('send').click(); };
+</script>
+</body>
+</html>

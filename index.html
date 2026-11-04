@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>ScanPad</title>
+<style>
+  :root { color-scheme: dark; --bg: #0c0c0e; --panel: #17171b; --line: #2c2c33; --text: #e8e8ea; --dim: #8a8a94; --lcd: #ffb02e; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 15px/1.3 system-ui, -apple-system, sans-serif; -webkit-user-select: none; user-select: none; }
+  body { display: flex; flex-direction: column; padding: 12px 16px 16px; gap: 12px; max-width: 900px; margin: 0 auto; }
+  header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  h1 { font-size: 18px; letter-spacing: .08em; margin: 0 8px 0 0; }
+  button { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; font: inherit; cursor: pointer; }
+  button.on { background: #3a2a0a; border-color: var(--lcd); color: var(--lcd); }
+  .spacer { flex: 1; }
+  #lcd { background: #000; border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; font: 600 20px/1.3 ui-monospace, Menlo, Consolas, monospace; color: var(--lcd); min-height: 56px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  #lcd small { display: block; color: var(--dim); font-size: 12px; font-weight: 400; }
+  #banks { display: flex; gap: 8px; }
+  #banks button { flex: 1; font-weight: 700; letter-spacing: .1em; }
+  #grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  .pad { position: relative; aspect-ratio: 1 / 1; border-radius: 12px; border: 2px solid color-mix(in srgb, var(--c) 55%, #000); background: linear-gradient(160deg, color-mix(in srgb, var(--c) 32%, #111), color-mix(in srgb, var(--c) 14%, #0a0a0a)); color: var(--text); display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-start; padding: 10px; text-align: left; transition: transform .06s, box-shadow .15s; touch-action: manipulation; }
+  .pad:active { transform: scale(.96); }
+  .pad.empty { --c: #333; opacity: .45; }
+  .pad.live { box-shadow: 0 0 0 2px var(--c), 0 0 24px color-mix(in srgb, var(--c) 70%, transparent); background: linear-gradient(160deg, color-mix(in srgb, var(--c) 70%, #111), color-mix(in srgb, var(--c) 35%, #0a0a0a)); }
+  .pad .name { font-weight: 700; font-size: clamp(12px, 2.4vw, 18px); line-height: 1.15; overflow-wrap: anywhere; }
+  .pad .freq { font: clamp(11px, 1.8vw, 14px) ui-monospace, Menlo, Consolas, monospace; color: color-mix(in srgb, var(--text) 75%, transparent); margin-top: 2px; }
+  .pad .key { position: absolute; top: 8px; right: 10px; font: 11px ui-monospace, monospace; color: var(--dim); }
+  body.editing .pad { outline: 1px dashed var(--dim); outline-offset: -6px; }
+  dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 12px; padding: 16px; width: min(360px, calc(100vw - 32px)); }
+  dialog::backdrop { background: rgba(0,0,0,.6); }
+  dialog label { display: block; color: var(--dim); font-size: 12px; margin: 10px 0 4px; }
+  dialog input[type=text] { width: 100%; background: #000; color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px; font: 16px ui-monospace, monospace; }
+  .swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+  .swatches button { width: 30px; height: 30px; padding: 0; border-radius: 50%; background: var(--c); }
+  .swatches button.on { outline: 2px solid #fff; outline-offset: 2px; }
+  .actions { display: flex; gap: 8px; margin-top: 16px; }
+  #toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: #3a1010; border: 1px solid #a33; padding: 8px 14px; border-radius: 8px; display: none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>SCANPAD</h1>
+  <button id="connect">Connect</button>
+  <span id="status" style="color:var(--dim)">Not connected</span>
+  <span class="spacer"></span>
+  <button id="edit">Edit</button>
+  <button id="export">Export</button>
+  <button id="import">Import</button>
+  <input id="file" type="file" accept=".json,application/json" hidden>
+</header>
+
+<div id="lcd"><div><span id="lcdName">—</span><small id="lcdSub">Connect to the SDS150</small></div><div id="lcdFreq"></div></div>
+<div id="banks"></div>
+<div id="grid"></div>
+
+<dialog id="dlg">
+  <form method="dialog">
+    <label>Name</label>
+    <input type="text" id="fName" maxlength="24" placeholder="e.g. NYPD Citywide 3">
+    <label>Frequency (MHz)</label>
+    <input type="text" id="fMhz" inputmode="decimal" placeholder="e.g. 470.8625">
+    <label>Color</label>
+    <div class="swatches" id="swatches"></div>
+    <div class="actions">
+      <button value="save" id="save">Save</button>
+      <button value="clear" id="clear">Clear pad</button>
+      <span class="spacer"></span>
+      <button value="cancel" formnovalidate>Cancel</button>
+    </div>
+  </form>
+</dialog>
+<div id="toast"></div>
+
+<script type="module">
+import { SDS150, mhzToSteps, parseScreen } from './sds150.js';
+
+const BANKS = ['A', 'B', 'C', 'D'];
+const COLORS = ['#ff5a36', '#ffb02e', '#ffe04a', '#5ad16b', '#2ec4b6', '#3a8dff', '#9b6bff', '#ff5ab4', '#c8c8c8'];
+// Keyboard layout mirrors the 4x4 grid, drum-machine style.
+const KEYS = ['1', '2', '3', '4', 'q', 'w', 'e', 'r', 'a', 's', 'd', 'f', 'z', 'x', 'c', 'v'];
+const STORE = 'scanpad.v1';
+
+const $ = id => document.getElementById(id);
+let state = load();
+let editing = false;
+let editIndex = -1;
+let pickedColor = COLORS[0];
+let liveSteps = null;
+let pollTimer = null;
+
+function load() {
+  try {
+    const s = JSON.parse(localStorage.getItem(STORE));
+    if (s && s.banks) return s;
+  } catch {}
+  const banks = Object.fromEntries(BANKS.map(b => [b, Array(16).fill(null)]));
+  banks.A[0] = { name: 'NYPD Citywide 3', mhz: '470.8625', color: '#3a8dff' };
+  banks.A[1] = { name: 'NOAA Weather', mhz: '162.5500', color: '#5ad16b' };
+  return { bank: 'A', banks };
+}
+function save() {
+  try { localStorage.setItem(STORE, JSON.stringify(state)); } catch {}
+}
+
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  clearTimeout(toast.t);
+  toast.t = setTimeout(() => (t.style.display = 'none'), 3500);
+}
+
+const radio = new SDS150({
+  onState(s) {
+    const label = { choosing: 'Choosing…', connecting: 'Connecting…', connected: 'Connected', disconnected: 'Disconnected' }[s];
+    $('status').textContent = label;
+    $('connect').textContent = s === 'connected' ? 'Disconnect' : 'Connect';
+    clearInterval(pollTimer);
+    if (s === 'connected') {
+      // Reading the screen every 1.5 s shows what the radio is on and keeps the link busy.
+      const poll = () => radio.send('GST').catch(() => {});
+      poll();
+      pollTimer = setInterval(poll, 1500);
+    } else if (s === 'disconnected') {
+      liveSteps = null;
+      $('lcdName').textContent = '—';
+      $('lcdSub').textContent = 'Disconnected';
+      $('lcdFreq').textContent = '';
+      renderGrid();
+    }
+  },
+  onLine(line) {
+    if (/^QSH,(NG|ERR)/.test(line)) toast(`Radio rejected that frequency (${line})`);
+    const scr = parseScreen(line);
+    if (!scr) return;
+    liveSteps = mhzToSteps(scr.mhz);
+    $('lcdName').textContent = scr.name || '—';
+    $('lcdSub').textContent = 'Now on';
+    $('lcdFreq').textContent = `${parseFloat(scr.mhz).toFixed(4)} MHz`;
+    renderGrid();
+  },
+});
+
+$('connect').onclick = async () => {
+  if (radio.connected) return radio.disconnect();
+  try { await radio.connect(); }
+  catch (e) { $('status').textContent = 'Not connected'; if (e.name !== 'NotFoundError') toast(e.message || String(e)); }
+};
+
+function renderBanks() {
+  $('banks').replaceChildren(...BANKS.map(b => {
+    const btn = document.createElement('button');
+    btn.textContent = `BANK ${b}`;
+    btn.className = b === state.bank ? 'on' : '';
+    btn.onclick = () => { state.bank = b; save(); renderBanks(); renderGrid(); };
+    return btn;
+  }));
+}
+
+function renderGrid() {
+  const pads = state.banks[state.bank];
+  $('grid').replaceChildren(...pads.map((p, i) => {
+    const el = document.createElement('button');
+    el.className = 'pad' + (p ? '' : ' empty') + (p && liveSteps === mhzToSteps(p.mhz) ? ' live' : '');
+    if (p) el.style.setProperty('--c', p.color);
+    el.innerHTML = `<span class="key"></span><span class="name"></span><span class="freq"></span>`;
+    el.querySelector('.key').textContent = KEYS[i].toUpperCase();
+    el.querySelector('.name').textContent = p ? p.name : (editing ? '+ add' : '');
+    el.querySelector('.freq').textContent = p ? `${parseFloat(p.mhz).toFixed(4)}` : '';
+    el.onclick = () => press(i);
+    return el;
+  }));
+}
+
+async function press(i) {
+  const p = state.banks[state.bank][i];
+  if (editing || !p) return openEditor(i);
+  if (!radio.connected) return toast('Connect to the SDS150 first');
+  try {
+    await radio.tune(p.mhz);
+    liveSteps = mhzToSteps(p.mhz);
+    renderGrid();
+  } catch (e) { toast(`Send failed: ${e.message || e}`); }
+}
+
+function openEditor(i) {
+  editIndex = i;
+  const p = state.banks[state.bank][i];
+  $('fName').value = p ? p.name : '';
+  $('fMhz').value = p ? p.mhz : '';
+  pickedColor = p ? p.color : COLORS[i % COLORS.length];
+  renderSwatches();
+  $('clear').style.display = p ? '' : 'none';
+  $('dlg').showModal();
+  $('fName').focus();
+}
+
+function renderSwatches() {
+  $('swatches').replaceChildren(...COLORS.map(c => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.style.setProperty('--c', c);
+    b.className = c === pickedColor ? 'on' : '';
+    b.onclick = () => { pickedColor = c; renderSwatches(); };
+    return b;
+  }));
+}
+
+$('dlg').querySelector('form').addEventListener('submit', e => {
+  e.preventDefault();
+  const pads = state.banks[state.bank];
+  const v = e.submitter ? e.submitter.value : 'save';
+  if (v === 'clear') pads[editIndex] = null;
+  if (v === 'save') {
+    const n = parseFloat($('fMhz').value.trim());
+    if (!(n >= 25 && n <= 1300)) { toast('Frequency must be between 25 and 1300 MHz'); return; }
+    pads[editIndex] = { name: $('fName').value.trim() || n.toFixed(4), mhz: n.toFixed(4), color: pickedColor };
+  }
+  $('dlg').close();
+  save();
+  renderGrid();
+});
+
+$('edit').onclick = () => {
+  editing = !editing;
+  document.body.classList.toggle('editing', editing);
+  $('edit').classList.toggle('on', editing);
+  $('edit').textContent = editing ? 'Done' : 'Edit';
+  renderGrid();
+};
+
+$('export').onclick = () => {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'scanpad.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+$('import').onclick = () => $('file').click();
+$('file').onchange = async () => {
+  const f = $('file').files[0];
+  if (!f) return;
+  try {
+    const s = JSON.parse(await f.text());
+    if (!s.banks || !BANKS.every(b => Array.isArray(s.banks[b]))) throw new Error('not a ScanPad file');
+    state = { bank: BANKS.includes(s.bank) ? s.bank : 'A', banks: s.banks };
+    save(); renderBanks(); renderGrid();
+  } catch (e) { toast(`Import failed: ${e.message}`); }
+  $('file').value = '';
+};
+
+document.addEventListener('keydown', e => {
+  if ($('dlg').open || e.ctrlKey || e.metaKey || e.altKey) return;
+  const i = KEYS.indexOf(e.key.toLowerCase());
+  if (i >= 0) { e.preventDefault(); press(i); }
+  else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+    const d = e.key === 'ArrowLeft' ? -1 : 1;
+    state.bank = BANKS[(BANKS.indexOf(state.bank) + d + BANKS.length) % BANKS.length];
+    save(); renderBanks(); renderGrid();
+  }
+});
+
+renderBanks();
+renderGrid();
+</script>
+</body>
+</html>
