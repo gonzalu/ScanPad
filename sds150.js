@@ -234,21 +234,24 @@ export function mhzToSteps(mhz) {
   return Math.round(parseFloat(mhz) * 1e4);
 }
 
-// Pull what the radio is showing out of a GST reply: the frequency, the channel
-// name (nearest plain screen line above the frequency or TGID line), and the
-// channel's number tag if it has one ("Tag:--.--.---" when it doesn't).
+// Pull what the radio is showing out of a GST reply. Its screen rows are split
+// by ",,": ... "D0:--2------- Tag:01.02.003", system, favorites list,
+// department, [site], "Citywide 3 ,*****, 470.862500MHz", ...
+// The tag reads "Tag:--.--.---" when the channel has none.
 export function parseScreen(line) {
+  // The radio puts a stray non-printing byte before "GST,", which _text turns into a space.
+  line = line.trimStart();
   if (!line.startsWith('GST,')) return null;
   const rows = line.split(',,').map(s => s.trim());
-  const at = rows.findIndex(r => /\d+\.\d+MHz/.test(r) || /^TGID:/.test(r));
-  if (at < 0) return null;
-  const freqRow = rows.find(r => /\d+\.\d+MHz/.test(r));
-  let name = '';
-  for (let i = at - 1; i >= 0 && !name; i--) if (rows[i] && !rows[i].includes(':')) name = rows[i].replace(/…$/, '');
-  const t = (rows.find(r => r.includes('Tag:')) || '').match(/Tag:\s*(\d+)\s*\.\s*(\d+)\s*\.\s*(\d+)/);
+  const at = rows.findIndex(r => r.includes('Tag:'));
+  const chan = rows.find(r => /,\*{5,},/.test(r)) || '';
+  const t = (rows[at] || '').match(/Tag:\s*(\d+)\s*\.\s*(\d+)\s*\.\s*(\d+)/);
+  const f = chan.match(/(\d+\.\d+)MHz/);
   return {
-    mhz: freqRow ? freqRow.match(/(\d+\.\d+)MHz/)[1] : '',
-    name,
+    mhz: f ? f[1] : '',
+    name: chan.split(',')[0].trim(),
+    system: at >= 0 ? rows[at + 1] || '' : '',
+    dept: at >= 0 ? rows[at + 3] || '' : '',
     tag: t ? `${+t[1]}.${+t[2]}.${+t[3]}` : '',
   };
 }

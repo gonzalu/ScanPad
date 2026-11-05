@@ -127,7 +127,7 @@
 <script type="module">
 // Bump ?v= whenever sds150.js changes: browsers (Bluefy especially) keep the
 // old module for up to 10 minutes otherwise, and pair it with the new page.
-import { SDS150, mhzToSteps, parseScreen, parseTag } from './sds150.js?v=5';
+import { SDS150, mhzToSteps, parseScreen, parseTag } from './sds150.js?v=6';
 
 const BANKS = ['A', 'B', 'C', 'D'];
 const COLORS = ['#ff5a36', '#ffb02e', '#ffe04a', '#5ad16b', '#2ec4b6', '#3a8dff', '#9b6bff', '#ff5ab4', '#c8c8c8'];
@@ -203,7 +203,7 @@ const radio = new SDS150({
     screen = scr;
     liveSteps = scr.mhz ? mhzToSteps(scr.mhz) : null;
     $('lcdName').textContent = scr.name || '—';
-    $('lcdSub').textContent = scr.tag ? `Now on · tag ${scr.tag}` : 'Now on';
+    $('lcdSub').textContent = [scr.system, scr.dept, scr.tag && `★ ${scr.tag}`].filter(Boolean).join(' · ') || 'Now on';
     $('lcdFreq').textContent = scr.mhz ? `${parseFloat(scr.mhz).toFixed(4)} MHz` : '';
     renderGrid();
   },
