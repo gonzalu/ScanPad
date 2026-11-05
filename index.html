@@ -154,7 +154,7 @@
 <script type="module">
 // Bump ?v= whenever sds150.js changes: browsers (Bluefy especially) keep the
 // old module for up to 10 minutes otherwise, and pair it with the new page.
-import { SDS150, mhzToSteps, parseScreen, parseTag } from './sds150.js?v=7';
+import { SDS150, mhzToSteps, parseScreen, parseTag } from './sds150.js?v=8';
 
 const BANKS = ['A', 'B', 'C', 'D'];
 const COLORS = ['#ff5a36', '#ffb02e', '#ffe04a', '#5ad16b', '#2ec4b6', '#3a8dff', '#9b6bff', '#ff5ab4', '#c8c8c8'];
@@ -200,6 +200,8 @@ function save() {
 
 function toast(msg) {
   const t = $('toast');
+  // An open dialog sits in the top layer, above everything else; ride along in it.
+  (document.querySelector('dialog[open]') || document.body).append(t);
   t.textContent = msg;
   t.style.display = 'block';
   clearTimeout(toast.t);
@@ -407,6 +409,7 @@ $('dlg').querySelector('form').addEventListener('submit', e => {
 // departments) to the 100 states the radio reported for it.
 const switches = new Map();
 const flipping = new Set();
+const switchErrors = new Map();
 const parentOf = qk => qk.split('.').slice(0, -1).join('.');
 const toPath = lv => lv ? lv.split('.').map(Number) : [];
 let qkLevel = '';
@@ -420,7 +423,8 @@ function switchState(qk) {
 async function readSwitches(levels) {
   if (!radio.connected) return;
   for (const lv of levels) {
-    try { switches.set(lv, await radio.quickKeys(toPath(lv))); } catch (e) { toast(e.message); }
+    try { switches.set(lv, await radio.quickKeys(toPath(lv))); switchErrors.delete(lv); }
+    catch (e) { switchErrors.set(lv, e.message); toast(e.message); }
   }
   renderGrid();
   if ($('qkDlg').open) renderQk();
@@ -464,6 +468,7 @@ function learnNames(scr) {
 
 function openLevel(lv) {
   qkLevel = lv;
+  switchErrors.delete(lv);
   renderQk();
   readSwitches([lv]);
 }
@@ -476,7 +481,7 @@ function renderQk() {
   const note = text => { const d = document.createElement('div'); d.className = 'hint'; d.textContent = text; return d; };
   const states = switches.get(lv);
   if (!radio.connected) return $('qkRows').replaceChildren(note('Connect to the SDS150 first.'));
-  if (!states) return $('qkRows').replaceChildren(note('Reading the radio…'));
+  if (!states) return $('qkRows').replaceChildren(note(switchErrors.get(lv) ? `Couldn't read the radio. ${switchErrors.get(lv)}` : 'Reading the radio…'));
   const rows = [];
   states.forEach((st, k) => {
     if (st === 'none') return;

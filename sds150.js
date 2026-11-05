@@ -165,8 +165,9 @@ export class SDS150 {
     // moment, so ask again before giving up.
     for (let i = 1; ; i++) {
       try {
-        const v = (await this.ask(cmd, 2500)).split(',').slice(1);
-        if (v.length < 100) throw new Error(`The radio answered ${cmd} oddly`);
+        const reply = await this.ask(cmd, 2500);
+        const v = reply.split(',').slice(1);
+        if (v.length < 100) throw new Error(`The radio answered ${cmd} oddly: ${v.length} of 100 slots, ${reply.length} characters, "${reply.slice(0, 24)}…${reply.slice(-16)}"`);
         return v.slice(-100).map(x => QK_STATES[x] || 'none');
       } catch (e) { if (i === 3) throw e; await sleep(1000); }
     }
