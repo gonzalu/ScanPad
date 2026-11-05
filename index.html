@@ -59,14 +59,15 @@
     header button { padding: 6px 9px; }
     h1 { width: 100%; }
     #lcd { font-size: 15px; min-height: 0; flex-direction: column; align-items: flex-start; gap: 2px; }
-    #banks { flex-direction: column; align-self: start; }
+    #banks { display: grid; grid-template-columns: 1fr 1fr; align-self: start; gap: 6px; }
+    #banks button { padding: 6px; }
     #padArea { grid-column: 2; grid-row: 1 / span 3; }
     #grid { --g: 8px; }
     .pad { padding: 6px 8px; }
   }
   /* Big screens (1080p and up): roomier controls. */
   @media (min-width: 1200px) and (min-height: 900px) {
-    body { font-size: 18px; gap: 16px; }
+    body { font-size: 18px; gap: 16px; max-width: none; }
     h1 { font-size: 24px; }
     #lcd { font-size: 26px; min-height: 72px; }
     #grid { --g: 14px; }
