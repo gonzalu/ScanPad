@@ -38,6 +38,7 @@
   <input id="raw" placeholder="Any command, e.g. MDL" disabled>
   <button id="send" disabled>Send</button>
   <label><input type="checkbox" id="showhex" style="min-width:0;flex:none"> show hex</label>
+  <label><input type="checkbox" id="showraw" style="min-width:0;flex:none"> raw packets</label>
 </div>
 <div class="row">
   <input id="mhz" value="470.8625" style="flex:none;width:120px" disabled> MHz
@@ -89,6 +90,10 @@ function frame(cmd) {
 function onNotify(ev) {
   const v = ev.target.value;
   const chunk = new Uint8Array(v.buffer, v.byteOffset, v.byteLength);
+  // Every Bluetooth notification exactly as it arrived, before any framing,
+  // except the lone 13-byte background (0xAF) frames.
+  const lonelyHeartbeat = chunk.length === 13 && chunk[7] === 0xaf;
+  if ($('showraw').checked && !lonelyHeartbeat) log(`RAW ${chunk.length}B  ${hex(chunk)}`, 'hex');
   const merged = new Uint8Array(rxBuf.length + chunk.length);
   merged.set(rxBuf); merged.set(chunk, rxBuf.length);
   rxBuf = merged;
@@ -113,14 +118,17 @@ function drainFrames() {
     let sum = 0;
     for (let i = 5; i < 5 + len; i++) sum = (sum + f[i]) & 0xffff;
     const ok = sum === ((f[total - 2] << 8) | f[total - 1]);
-    if ($('showhex').checked) log(`RX frame ${ok ? '' : '(BAD SUM) '}${hex(f)}`, 'hex');
+    if (!ok) log(`Dropped a frame with a bad checksum (${total} bytes, seq ${hex(f.slice(5, 7))})`, 'err');
+    // A frame holding only the radio's background 0xAF block arrives ~10x a second; skip it.
+    const heartbeat = len === 6 && f[7] === 0xaf;
+    if ($('showhex').checked && !heartbeat) log(`RX frame ${ok ? '' : '(BAD SUM) '}${hex(f)}`, 'hex');
     let text = '';
     for (let r = 7; r + 3 <= total - 2;) {
       const type = f[r], n = (f[r + 1] << 8) | f[r + 2], d = f.subarray(r + 3, r + 3 + n);
       if (r + 3 + n > total - 2) break;
       if (type === 0xc0) text += new TextDecoder().decode(d[0] === 0x81 ? d.subarray(1) : d);
       // 0xAF arrives ~10x a second, 0xA0/0xA2 now and then; only worth seeing in hex mode.
-      else if (type !== 0xa1 && $('showhex').checked) log(`RX block type 0x${type.toString(16)} (${n} bytes)`, 'hex');
+      else if (type !== 0xa1 && type !== 0xaf && $('showhex').checked) log(`RX block type 0x${type.toString(16)} (${n} bytes)`, 'hex');
       r += 3 + n;
     }
     // Screen text carries icon glyph bytes (signal bars, battery); show them as spaces.

@@ -24,6 +24,7 @@ export class SDS150 {
     this.rxBuf = new Uint8Array(0);
     this.textBuf = '';
     this.writeChain = Promise.resolve();
+    this.waiters = [];
   }
 
   get connected() { return !!this.chr; }
@@ -108,6 +109,35 @@ export class SDS150 {
     return this.send('JPM,SCN_MODE,0');
   }
 
+  // Jump to a programmed channel by its Sentinel number tags and hold it.
+  // (Over Bluetooth the SDS150 delivers only the last line of a multi-line
+  // reply, so browsing favorites with GLT can't work; one-line JNT does.)
+  async jumpTag(tag) {
+    const { fl, sys, chan } = parseTag(tag);
+    const reply = await this.ask(`JNT,${fl},${sys},${chan}`);
+    if (reply === 'JNT,NG') throw new Error(`No channel on the radio has tag ${tag}`);
+    if (reply !== 'JNT,OK') throw new Error(`The radio refused the jump (${reply})`);
+  }
+
+  // Send a command and resolve with its one-line reply, e.g. "JNT,OK".
+  ask(cmd, timeoutMs = 2000) {
+    const head = cmd.split(',')[0].toUpperCase();
+    return new Promise((resolve, reject) => {
+      const done = (fn, v) => {
+        clearTimeout(timer);
+        this.waiters = this.waiters.filter(w => w !== waiter);
+        fn(v);
+      };
+      const waiter = line => {
+        const l = line.trim();
+        if (l.toUpperCase().startsWith(head + ',') || l === 'ERR') done(resolve, l);
+      };
+      const timer = setTimeout(() => done(reject, new Error(`No reply to ${head}`)), timeoutMs);
+      this.waiters.push(waiter);
+      this.send(cmd).catch(e => done(reject, e));
+    });
+  }
+
   _frame(cmd) {
     const text = new TextEncoder().encode(cmd.endsWith('\r') ? cmd : cmd + '\r');
     this.seq = (this.seq + 1) & 0xffff;
@@ -163,7 +193,9 @@ export class SDS150 {
     while ((i = this.textBuf.search(/[\r\n]/)) >= 0) {
       const line = this.textBuf.slice(0, i).replace(/[^\x20-\x7e]/g, ' ');
       this.textBuf = this.textBuf.slice(i + 1);
-      if (line.trim()) this.onLine(line);
+      if (!line.trim()) continue;
+      for (const w of [...this.waiters]) w(line);
+      this.onLine(line);
     }
   }
 }
@@ -173,18 +205,32 @@ async function step(what, fn) {
   catch (e) { throw new Error(`Failed ${what}: ${e.message || e}`); }
 }
 
+// "1.1.3" (or "1 1 3", "01.01.003") -> { fl: 1, sys: 1, chan: 3 }.
+export function parseTag(tag) {
+  const m = String(tag).trim().match(/^(\d{1,2})\D+(\d{1,2})\D+(\d{1,3})$/);
+  if (!m) throw new Error(`"${tag}" isn't a number tag like 1.2.15`);
+  return { fl: +m[1], sys: +m[2], chan: +m[3] };
+}
+
 export function mhzToSteps(mhz) {
   return Math.round(parseFloat(mhz) * 1e4);
 }
 
-// Pull what the radio is showing out of a GST reply: the frequency line and
-// the nearest non-empty screen line above it (the channel name).
+// Pull what the radio is showing out of a GST reply: the frequency, the channel
+// name (nearest plain screen line above the frequency or TGID line), and the
+// channel's number tag if it has one ("Tag:--.--.---" when it doesn't).
 export function parseScreen(line) {
   if (!line.startsWith('GST,')) return null;
   const rows = line.split(',,').map(s => s.trim());
-  const at = rows.findIndex(r => /^\d+\.\d+MHz$/.test(r));
+  const at = rows.findIndex(r => /\d+\.\d+MHz/.test(r) || /^TGID:/.test(r));
   if (at < 0) return null;
+  const freqRow = rows.find(r => /\d+\.\d+MHz/.test(r));
   let name = '';
-  for (let i = at - 1; i >= 0 && !name; i--) if (rows[i] && !rows[i].includes(':')) name = rows[i];
-  return { mhz: rows[at].replace('MHz', ''), name };
+  for (let i = at - 1; i >= 0 && !name; i--) if (rows[i] && !rows[i].includes(':')) name = rows[i].replace(/…$/, '');
+  const t = (rows.find(r => r.includes('Tag:')) || '').match(/Tag:\s*(\d+)\s*\.\s*(\d+)\s*\.\s*(\d+)/);
+  return {
+    mhz: freqRow ? freqRow.match(/(\d+\.\d+)MHz/)[1] : '',
+    name,
+    tag: t ? `${+t[1]}.${+t[2]}.${+t[3]}` : '',
+  };
 }
