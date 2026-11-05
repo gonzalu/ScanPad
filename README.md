@@ -28,7 +28,16 @@ first.
    now** fills in the tag of the channel the radio is on. Tag pads show a ★.
    A tag pad can also hold a frequency, which it tunes instead if the radio
    has no channel with that tag. **Done** when finished.
-6. **Export** saves your pads to `scanpad.json`; **Import** loads them on
+6. **Scan lists** shows the favorites lists on the radio with an on/off switch
+   each; tap a list for its systems, and a system for its departments. These
+   are the radio's quick keys, so only the ones assigned in Sentinel appear.
+   **✎** names one (the radio can't send names over Bluetooth; list and system
+   names are also picked up from its screen), and **+ pad** puts a switch for
+   it on the current bank. A switch pad (**A scan switch** in Edit) takes a
+   quick key such as `2` (list 2), `1.5` (system 5 in list 1) or `1.2.3`
+   (department 3 of system 2 in list 1), glows while it's on, and flips it
+   when pressed.
+7. **Export** saves your pads to `scanpad.json`; **Import** loads them on
    another device. **Defaults** puts back the default set.
 
 ## Default pads
@@ -72,7 +81,13 @@ each (`null` is an empty pad):
 - `kind: "tag"` with `tag`: jump to the channel with this Sentinel number tag
   (favorites list . system . channel).
 - `mode`: shown on the pad only; the radio picks the modulation itself.
+- `kind: "qk"` with `qk`: a scan switch for that quick key (`"2"`, `"1.5"`,
+  `"1.2.3"`).
 - `color`: any CSS color.
+
+The file can also carry `"names"`, keyed the same way (`{"1": "Police NY",
+"1.5": "Metro-25"}`), to label the Scan lists panel. The default file's names
+are the author's own lists.
 
 The SDS150 drops a Bluetooth link by itself now and then. ScanPad reconnects
 on its own, retrying for about three minutes, and shows "Link dropped,
@@ -97,7 +112,11 @@ wrapped in a small binary "PT" frame; see the header of `sds150.js`.
 Tune-and-hold is `QSH,<frequency in 100 Hz steps, 8 digits>`, e.g.
 `QSH,04708625` for 470.8625 MHz. A tag pad sends `JNT,<list>,<system>,<channel>`
 (the radio answers `JNT,OK`, or `JNT,NG` if nothing has that tag), and
-`JPM,SCN_MODE,0` resumes scanning.
+`JPM,SCN_MODE,0` resumes scanning. Scan switches use the quick-key commands
+`FQK` (lists), `SQK,<list>` (systems) and `DQK,<list>,<system>`
+(departments): each answers one line of 100 slots (0 = not assigned, 1 = off,
+2 = on), and setting one sends all 100 back. The radio stops answering for a
+few seconds after a switch.
 
 Over Bluetooth the SDS150 delivers only the **last line** of a multi-line reply,
 so commands that answer with lists (`GLT`, `GSI`) don't work; that's why

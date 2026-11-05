@@ -137,6 +137,57 @@ export class SDS150 {
     if (reply !== 'JNT,OK') throw new Error(`The radio refused the jump (${reply})`);
   }
 
+  // Quick keys switch what the radio scans: favorites lists (FQK), the systems
+  // in a list (SQK,<list>) and the departments in a system (DQK,<list>,<system>).
+  // `path` picks the level: [] for lists, [list] for its systems, [list, system]
+  // for its departments. Each reply is one line of 100 slots, 0 = no such key,
+  // 1 = off, 2 = on; a set sends all 100 back.
+  quickKeys(path) {
+    return this._exclusive(() => this._readQuickKeys(path));
+  }
+
+  setQuickKey(path, key, on) {
+    return this._exclusive(async () => {
+      const states = await this._readQuickKeys(path);
+      if (states[key] === 'none') throw new Error(`Quick key ${key} isn't assigned on the radio`);
+      states[key] = on ? 'on' : 'off';
+      const reply = await this.ask(`${qkCommand(path)},${states.map(s => QK_STATES.indexOf(s)).join(',')}`, 3000);
+      if (!reply.endsWith(',OK')) throw new Error(`The radio refused the switch (${reply})`);
+      // The radio goes deaf for a few seconds while it rebuilds its scan list.
+      this.quietUntil = Date.now() + 4000;
+      return states;
+    });
+  }
+
+  async _readQuickKeys(path) {
+    const cmd = qkCommand(path);
+    // Replies can lose their start when the radio pushes something at the same
+    // moment, so ask again before giving up.
+    for (let i = 1; ; i++) {
+      try {
+        const v = (await this.ask(cmd, 2500)).split(',').slice(1);
+        if (v.length < 100) throw new Error(`The radio answered ${cmd} oddly`);
+        return v.slice(-100).map(x => QK_STATES[x] || 'none');
+      } catch (e) { if (i === 3) throw e; await sleep(1000); }
+    }
+  }
+
+  // One quick-key exchange at a time, none while the radio is still deaf;
+  // `busy` tells the page to hold its screen polling meanwhile.
+  _exclusive(fn) {
+    const run = async () => {
+      this.busy = true;
+      try {
+        const wait = (this.quietUntil || 0) - Date.now();
+        if (wait > 0) await sleep(wait);
+        return await fn();
+      } finally { this.busy = false; }
+    };
+    const p = (this.exclusiveChain || Promise.resolve()).then(run, run);
+    this.exclusiveChain = p.catch(() => {});
+    return p;
+  }
+
   // Send a command and resolve with its one-line reply, e.g. "JNT,OK".
   ask(cmd, timeoutMs = 2000) {
     const head = cmd.split(',')[0].toUpperCase();
@@ -218,6 +269,13 @@ export class SDS150 {
   }
 }
 
+const QK_STATES = ['none', 'off', 'on'];
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function qkCommand(path) {
+  return ['FQK', 'SQK', 'DQK'][path.length] + path.map(n => `,${n}`).join('');
+}
+
 async function step(what, fn) {
   try { return await fn(); }
   catch (e) { throw new Error(`Failed ${what}: ${e.message || e}`); }
@@ -251,6 +309,7 @@ export function parseScreen(line) {
     mhz: f ? f[1] : '',
     name: chan.split(',')[0].trim(),
     system: at >= 0 ? rows[at + 1] || '' : '',
+    list: at >= 0 ? rows[at + 2] || '' : '',
     dept: at >= 0 ? rows[at + 3] || '' : '',
     tag: t ? `${+t[1]}.${+t[2]}.${+t[3]}` : '',
   };

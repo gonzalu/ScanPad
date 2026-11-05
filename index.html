@@ -72,6 +72,16 @@
     #lcd { font-size: 26px; min-height: 72px; }
     #grid { --g: 14px; }
   }
+  #qkDlg { width: min(460px, calc(100vw - 32px)); }
+  #qkHead { display: flex; align-items: center; gap: 8px; }
+  #qkTitle { font-weight: 700; overflow-wrap: anywhere; }
+  #qkRows { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; max-height: 60vh; overflow-y: auto; }
+  .qkRow { display: flex; align-items: center; gap: 8px; }
+  .qkRow .sw { min-width: 58px; font-weight: 700; }
+  .qkRow .sw.on { background: #12351a; border-color: #5ad16b; color: #5ad16b; }
+  .qkRow .label { flex: 1; text-align: left; overflow-wrap: anywhere; }
+  .qkRow .label:disabled { opacity: 1; cursor: default; background: none; border-color: transparent; }
+  .qkRow .mini { padding: 6px 8px; color: var(--dim); }
   #toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: #3a1010; border: 1px solid #a33; padding: 8px 14px; border-radius: 8px; display: none; }
 </style>
 </head>
@@ -81,6 +91,7 @@
   <button id="connect">Connect</button>
   <span id="status" style="color:var(--dim)">Not connected</span>
   <button id="scan">▶ Scan</button>
+  <button id="lists">Scan lists</button>
   <span class="spacer"></span>
   <button id="edit">Edit</button>
   <button id="export">Export</button>
@@ -101,6 +112,12 @@
     <div class="seg">
       <button type="button" id="kindFreq">A frequency</button>
       <button type="button" id="kindTag">A tagged channel</button>
+      <button type="button" id="kindQk">A scan switch</button>
+    </div>
+    <div id="qkBox">
+      <label>Quick key</label>
+      <input type="text" id="fQk" inputmode="decimal" placeholder="e.g. 2, 1.5 or 1.2.3">
+      <div class="hint">2 = favorites list 2 · 1.5 = system 5 in list 1 · 1.2.3 = department 3 of system 2 in list 1. Pressing the pad switches it on or off. <b>Scan lists</b> can make these pads for you.</div>
     </div>
     <div id="freqBox">
       <label id="mhzLabel">Frequency (MHz)</label>
@@ -122,12 +139,22 @@
     </div>
   </form>
 </dialog>
+<dialog id="qkDlg">
+  <div id="qkHead">
+    <button id="qkBack">‹ Back</button>
+    <span id="qkTitle"></span>
+    <span class="spacer"></span>
+    <button id="qkClose">Close</button>
+  </div>
+  <div id="qkRows"></div>
+  <div class="hint">On/off is what the radio scans. ✎ renames (the radio can't send names over Bluetooth), + pad puts a switch for it on this bank.</div>
+</dialog>
 <div id="toast"></div>
 
 <script type="module">
 // Bump ?v= whenever sds150.js changes: browsers (Bluefy especially) keep the
 // old module for up to 10 minutes otherwise, and pair it with the new page.
-import { SDS150, mhzToSteps, parseScreen, parseTag } from './sds150.js?v=6';
+import { SDS150, mhzToSteps, parseScreen, parseTag } from './sds150.js?v=7';
 
 const BANKS = ['A', 'B', 'C', 'D'];
 const COLORS = ['#ff5a36', '#ffb02e', '#ffe04a', '#5ad16b', '#2ec4b6', '#3a8dff', '#9b6bff', '#ff5ab4', '#c8c8c8'];
@@ -156,7 +183,10 @@ function load() {
 }
 function usePads(s) {
   if (!s.banks || !BANKS.every(b => Array.isArray(s.banks[b]))) throw new Error('not a ScanPad file');
-  state = { bank: BANKS.includes(s.bank) ? s.bank : 'A', banks: s.banks };
+  // Names of lists, systems and departments ("1", "1.5", "1.2.3"): the file's
+  // fill in what this device hasn't learned yet.
+  const names = { ...(s.names || {}), ...(state.names || {}) };
+  state = { bank: BANKS.includes(s.bank) ? s.bank : 'A', banks: s.banks, names };
   save(); renderBanks(); renderGrid();
 }
 async function loadDefaults() {
@@ -184,9 +214,11 @@ const radio = new SDS150({
     clearInterval(pollTimer);
     if (s === 'connected') {
       // Reading the screen every 1.5 s shows what the radio is on and keeps the link busy.
-      const poll = () => radio.send('GST').catch(() => {});
+      // Held while a quick-key switch is in flight: the two replies garble each other.
+      const poll = () => radio.busy || radio.send('GST').catch(() => {});
       poll();
       pollTimer = setInterval(poll, 1500);
+      refreshSwitchPads();
     } else if (s === 'disconnected') {
       liveSteps = null;
       $('lcdName').textContent = '—';
@@ -201,6 +233,7 @@ const radio = new SDS150({
     const scr = parseScreen(line);
     if (!scr) return;
     screen = scr;
+    learnNames(scr);
     liveSteps = scr.mhz ? mhzToSteps(scr.mhz) : null;
     $('lcdName').textContent = scr.name || '—';
     $('lcdSub').textContent = [scr.system, scr.dept, scr.tag && `★ ${scr.tag}`].filter(Boolean).join(' · ') || 'Now on';
@@ -208,6 +241,9 @@ const radio = new SDS150({
     renderGrid();
   },
 });
+
+// For poking at the radio from the browser console: scanpad.radio.ask('MDL').
+window.scanpad = { radio };
 
 $('connect').onclick = async () => {
   if (radio.connected || $('connect').textContent === 'Disconnect') return radio.disconnect();
@@ -243,8 +279,13 @@ function renderGrid() {
     el.innerHTML = `<span class="key"></span><span class="name"></span><span class="freq"></span><span class="tag"></span>`;
     el.querySelector('.key').textContent = KEYS[i].toUpperCase();
     el.querySelector('.name').textContent = p ? p.name : (editing ? '+ add' : '');
-    el.querySelector('.freq').textContent = p && p.mhz ? [fmtMhz(p.mhz), p.mode].filter(Boolean).join(' ') : '';
-    el.querySelector('.tag').textContent = p && p.kind === 'tag' ? `★ ${p.tag}` : '';
+    if (p && p.kind === 'qk') {
+      el.querySelector('.freq').textContent = { on: 'ON', off: 'OFF', busy: 'Switching…' }[switchState(p.qk)] || '—';
+      el.querySelector('.tag').textContent = `⏻ ${p.qk}`;
+    } else {
+      el.querySelector('.freq').textContent = p && p.mhz ? [fmtMhz(p.mhz), p.mode].filter(Boolean).join(' ') : '';
+      el.querySelector('.tag').textContent = p && p.kind === 'tag' ? `★ ${p.tag}` : '';
+    }
     el.onclick = () => press(i);
     return el;
   }));
@@ -252,6 +293,7 @@ function renderGrid() {
 
 // A pad is live when the radio shows its tag or its frequency.
 function isLive(p) {
+  if (p.kind === 'qk') return switchState(p.qk) === 'on';
   if (p.kind === 'tag' && screen && screen.tag === p.tag) return true;
   return !!p.mhz && liveSteps !== null && liveSteps === mhzToSteps(p.mhz);
 }
@@ -266,6 +308,7 @@ async function press(i) {
   if (editing || !p) return openEditor(i);
   if (!radio.connected) return toast('Connect to the SDS150 first');
   try {
+    if (p.kind === 'qk') return await flipSwitch(p.qk);
     if (p.kind === 'tag') {
       // Someone else's radio won't have these tags; a tag pad that knows its
       // frequency still works there, it just tunes instead of jumping.
@@ -282,7 +325,8 @@ function openEditor(i) {
   $('fName').value = p ? p.name : '';
   $('fMhz').value = p && p.mhz ? fmtMhz(p.mhz) : '';
   $('fTag').value = p && p.kind === 'tag' ? p.tag : '';
-  setKind(p && p.kind === 'tag' ? 'tag' : 'freq');
+  $('fQk').value = p && p.kind === 'qk' ? p.qk : '';
+  setKind(p && (p.kind === 'tag' || p.kind === 'qk') ? p.kind : 'freq');
   pickedColor = p ? p.color : COLORS[i % COLORS.length];
   renderSwatches();
   $('clear').style.display = p ? '' : 'none';
@@ -294,11 +338,15 @@ function setKind(k) {
   editKind = k;
   $('kindFreq').className = k === 'freq' ? 'on' : '';
   $('kindTag').className = k === 'tag' ? 'on' : '';
+  $('kindQk').className = k === 'qk' ? 'on' : '';
   $('mhzLabel').textContent = k === 'freq' ? 'Frequency (MHz)' : 'Frequency (MHz, optional: tuned if the radio has no such tag)';
+  $('freqBox').style.display = k === 'qk' ? 'none' : '';
   $('tagBox').style.display = k === 'tag' ? '' : 'none';
+  $('qkBox').style.display = k === 'qk' ? '' : 'none';
 }
 $('kindFreq').onclick = () => setKind('freq');
 $('kindTag').onclick = () => setKind('tag');
+$('kindQk').onclick = () => setKind('qk');
 
 // Fill the pad from whatever channel the radio is on right now.
 $('useNow').onclick = () => {
@@ -326,7 +374,12 @@ $('dlg').querySelector('form').addEventListener('submit', e => {
   const v = e.submitter ? e.submitter.value : 'save';
   const old = pads[editIndex];
   if (v === 'clear') pads[editIndex] = null;
-  if (v === 'save') {
+  if (v === 'save' && editKind === 'qk') {
+    const qk = $('fQk').value.trim().replace(/\s+/g, '').replace(/,/g, '.');
+    if (!/^\d{1,2}(\.\d{1,2}){0,2}$/.test(qk)) { toast('A quick key looks like 2, 1.5 or 1.2.3'); return; }
+    pads[editIndex] = { kind: 'qk', name: $('fName').value.trim() || state.names?.[qk] || `Switch ${qk}`, qk, color: pickedColor };
+    readSwitches([...new Set([parentOf(qk)])]);
+  } else if (v === 'save') {
     const raw = $('fMhz').value.trim();
     const n = parseFloat(raw);
     if ((editKind === 'freq' || raw) && !(n >= 25 && n <= 1300)) { toast('Frequency must be between 25 and 1300 MHz'); return; }
@@ -346,6 +399,122 @@ $('dlg').querySelector('form').addEventListener('submit', e => {
   save();
   renderGrid();
 });
+
+// ---- Scan switches (quick keys) ----
+// A switch is named by its path: "2" = favorites list 2, "1.5" = system 5 in
+// list 1, "1.2.3" = department 3 of system 2 in list 1. `switches` maps a level
+// ("" for the lists, "1" for list 1's systems, "1.2" for that system's
+// departments) to the 100 states the radio reported for it.
+const switches = new Map();
+const flipping = new Set();
+const parentOf = qk => qk.split('.').slice(0, -1).join('.');
+const toPath = lv => lv ? lv.split('.').map(Number) : [];
+let qkLevel = '';
+
+function switchState(qk) {
+  if (flipping.has(qk)) return 'busy';
+  const s = switches.get(parentOf(qk));
+  return s && s[+qk.split('.').pop()];
+}
+
+async function readSwitches(levels) {
+  if (!radio.connected) return;
+  for (const lv of levels) {
+    try { switches.set(lv, await radio.quickKeys(toPath(lv))); } catch (e) { toast(e.message); }
+  }
+  renderGrid();
+  if ($('qkDlg').open) renderQk();
+}
+
+// After connecting, find out whether each switch pad's quick key is on.
+function refreshSwitchPads() {
+  const levels = new Set();
+  for (const b of BANKS) for (const p of state.banks[b]) if (p && p.kind === 'qk') levels.add(parentOf(p.qk));
+  if (levels.size) readSwitches([...levels]);
+}
+
+async function flipSwitch(qk) {
+  if (!radio.connected) return toast('Connect to the SDS150 first');
+  if (flipping.has(qk)) return;
+  const lv = parentOf(qk), key = +qk.split('.').pop();
+  flipping.add(qk); renderGrid(); if ($('qkDlg').open) renderQk();
+  try {
+    if (!switches.has(lv)) switches.set(lv, await radio.quickKeys(toPath(lv)));
+    switches.set(lv, await radio.setQuickKey(toPath(lv), key, switches.get(lv)[key] !== 'on'));
+  } finally {
+    flipping.delete(qk); renderGrid(); if ($('qkDlg').open) renderQk();
+  }
+}
+
+function nameOf(qk) {
+  const parts = qk.split('.');
+  return state.names?.[qk] || `${['List', 'System', 'Department'][parts.length - 1]} ${parts.at(-1)}`;
+}
+
+// The radio can't send names over Bluetooth, but its screen shows the list and
+// system it's on along with their numbers (the channel's tag), so learn those.
+function learnNames(scr) {
+  if (!scr.tag) return;
+  const [fl, sys] = scr.tag.split('.');
+  const names = state.names || (state.names = {});
+  let changed = false;
+  for (const [k, v] of [[fl, scr.list], [`${fl}.${sys}`, scr.system]]) if (v && names[k] !== v) { names[k] = v; changed = true; }
+  if (changed) save();
+}
+
+function openLevel(lv) {
+  qkLevel = lv;
+  renderQk();
+  readSwitches([lv]);
+}
+
+function renderQk() {
+  const lv = qkLevel;
+  const crumbs = lv ? lv.split('.').map((_, i, a) => nameOf(a.slice(0, i + 1).join('.'))) : [];
+  $('qkTitle').textContent = ['Scan lists', ...crumbs].join(' › ');
+  $('qkBack').style.visibility = lv ? '' : 'hidden';
+  const note = text => { const d = document.createElement('div'); d.className = 'hint'; d.textContent = text; return d; };
+  const states = switches.get(lv);
+  if (!radio.connected) return $('qkRows').replaceChildren(note('Connect to the SDS150 first.'));
+  if (!states) return $('qkRows').replaceChildren(note('Reading the radio…'));
+  const rows = [];
+  states.forEach((st, k) => {
+    if (st === 'none') return;
+    const qk = lv ? `${lv}.${k}` : String(k);
+    const row = document.createElement('div');
+    row.className = 'qkRow';
+    const btn = (cls, label, onclick) => { const b = document.createElement('button'); b.className = cls; b.textContent = label; b.onclick = onclick; return b; };
+    const s = switchState(qk);
+    row.append(
+      btn('sw' + (s === 'on' ? ' on' : ''), { on: 'ON', off: 'OFF', busy: '…' }[s], () => flipSwitch(qk).catch(e => toast(e.message))),
+      btn('label', `${qk}  ${nameOf(qk)}${qk.split('.').length < 3 ? '  ›' : ''}`, () => openLevel(qk)),
+      btn('mini', '✎', () => {
+        const n = prompt(`Name for quick key ${qk}`, nameOf(qk));
+        if (n === null) return;
+        (state.names || (state.names = {}))[qk] = n.trim();
+        if (!n.trim()) delete state.names[qk];
+        save(); renderQk(); renderGrid();
+      }),
+      btn('mini', '+ pad', () => addSwitchPad(qk)),
+    );
+    if (qk.split('.').length === 3) row.querySelector('.label').disabled = true;
+    rows.push(row);
+  });
+  $('qkRows').replaceChildren(...(rows.length ? rows : [note('No quick keys are assigned here. Set them in Sentinel.')]));
+}
+
+function addSwitchPad(qk) {
+  const pads = state.banks[state.bank];
+  const i = pads.indexOf(null);
+  if (i < 0) return toast(`Bank ${state.bank} is full; clear a pad first`);
+  pads[i] = { kind: 'qk', name: nameOf(qk), qk, color: '#5ad16b' };
+  save(); renderGrid();
+  toast(`Added to bank ${state.bank}, pad ${KEYS[i].toUpperCase()}`);
+}
+
+$('lists').onclick = () => { $('qkDlg').showModal(); openLevel(''); };
+$('qkBack').onclick = () => openLevel(parentOf(qkLevel));
+$('qkClose').onclick = () => $('qkDlg').close();
 
 $('edit').onclick = () => {
   editing = !editing;
@@ -377,7 +546,7 @@ $('defaults').onclick = () => {
 };
 
 document.addEventListener('keydown', e => {
-  if ($('dlg').open || e.ctrlKey || e.metaKey || e.altKey) return;
+  if ($('dlg').open || $('qkDlg').open || e.ctrlKey || e.metaKey || e.altKey) return;
   const i = KEYS.indexOf(e.key.toLowerCase());
   if (i >= 0) { e.preventDefault(); press(i); }
   else if (e.key === ' ') { e.preventDefault(); $('scan').click(); }
@@ -391,6 +560,9 @@ document.addEventListener('keydown', e => {
 renderBanks();
 renderGrid();
 if (state.fresh) loadDefaults().catch(e => toast(e.message));
+// Pads saved before names existed: take the default names, keep the pads.
+else if (!state.names) fetch('pads/default.json', { cache: 'no-cache' }).then(r => r.json())
+  .then(d => { state.names = d.names || {}; save(); renderGrid(); }).catch(() => {});
 </script>
 </body>
 </html>
