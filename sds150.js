@@ -7,16 +7,18 @@
 // LEN = payload length, N = ascii length + 1, SUM = 16-bit sum of the payload.
 // "KEY,OK" is the only command sent without the clock field.
 // Replies use the same frame; from byte 7 the payload holds blocks of
-// TYPE(1) LEN(2) DATA, where C0 is text (led by 0x81) and A1 is audio.
-// The radio also streams tiny AF blocks ~10x a second; those are ignored.
+// TYPE(1) LEN(2) DATA, where C0 is text (led by 0x81) and A1 is audio: one
+// Opus packet per block, 16 kHz mono, sent all the time with no command to
+// start it. Between transmissions the audio blocks are a few bytes of silence.
 
 const SERVICE = '3a5b9d10-f2ec-4f5c-bb2e-2f1a8d98a0a6';
 const CHAR = 'ab8c17d4-c1c5-4c91-8c56-7d01954c471e';
 const STD_SERVICES = ['00001800-0000-1000-8000-00805f9b34fb', '00001801-0000-1000-8000-00805f9b34fb', '0000180a-0000-1000-8000-00805f9b34fb'];
 
 export class SDS150 {
-  constructor({ onLine = () => {}, onState = () => {} } = {}) {
+  constructor({ onLine = () => {}, onState = () => {}, onAudio = () => {} } = {}) {
     this.onLine = onLine;
+    this.onAudio = onAudio;
     this.onState = onState;
     this.device = null;
     this.chr = null;
@@ -274,9 +276,18 @@ export class SDS150 {
         if (r + 3 + n > total - 2) break;
         const d = f.subarray(r + 3, r + 3 + n);
         if (type === 0xc0) this._text(new TextDecoder().decode(d[0] === 0x81 ? d.subarray(1) : d));
+        else if (type === 0xa1) this._audio(d);
         r += 3 + n;
       }
     }
+  }
+
+  // Some audio blocks carry a stray byte ahead of the Opus packet's 0xB8
+  // header; blocks under 8 bytes are silence. (Same rules as AlphaScan.)
+  _audio(d) {
+    let a = d.slice();
+    if (a.length >= 2 && a[1] === 0xb8) a = a.subarray(1);
+    if (a.length >= 8) this.onAudio(a);
   }
 
   // A long reply (GST/STS) spans several frames, so collect text up to the \r.

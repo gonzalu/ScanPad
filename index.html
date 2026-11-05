@@ -101,6 +101,7 @@
   <span id="status" style="color:var(--dim)">Not connected</span>
   <button id="scan">▶ Scan</button>
   <button id="lists">Scan lists</button>
+  <button id="audio" title="Play the radio's audio here">🔇 Audio</button>
   <span class="spacer"></span>
   <button id="edit">Edit</button>
   <button id="export">Export</button>
@@ -169,7 +170,8 @@
 <script type="module">
 // Bump ?v= whenever sds150.js changes: browsers (Bluefy especially) keep the
 // old module for up to 10 minutes otherwise, and pair it with the new page.
-import { SDS150, mhzToSteps, parseScreen, parseTag } from './sds150.js?v=9';
+import { SDS150, mhzToSteps, parseScreen, parseTag } from './sds150.js?v=10';
+import { Speaker } from './speaker.js?v=2';
 
 const BANKS = ['A', 'B', 'C', 'D'];
 const COLORS = ['#ff5a36', '#ffb02e', '#ffe04a', '#5ad16b', '#2ec4b6', '#3a8dff', '#9b6bff', '#ff5ab4', '#c8c8c8'];
@@ -226,7 +228,10 @@ function toast(msg) {
   toast.t = setTimeout(() => (t.style.display = 'none'), 3500);
 }
 
+const speaker = new Speaker();
+
 const radio = new SDS150({
+  onAudio: packet => speaker.play(packet),
   onState(s) {
     const label = { choosing: 'Choosing…', connecting: 'Connecting…', reconnecting: 'Link dropped, reconnecting…', connected: 'Connected', disconnected: 'Disconnected' }[s];
     $('status').textContent = label;
@@ -235,7 +240,9 @@ const radio = new SDS150({
     if (s === 'connected') {
       // Reading the screen every 1.5 s shows what the radio is on and keeps the link busy.
       // Held while a quick-key switch is in flight: the two replies garble each other.
-      const poll = () => radio.busy || radio.send('GST').catch(() => {});
+      // And held while audio is playing: the radio stops sending sound for
+      // half a second to answer each one. The screen catches up when it's quiet.
+      const poll = () => radio.busy || speaker.talking() || radio.send('GST').catch(() => {});
       poll();
       pollTimer = setInterval(poll, 1500);
       refreshSwitchPads();
@@ -263,7 +270,18 @@ const radio = new SDS150({
 });
 
 // For poking at the radio from the browser console: scanpad.radio.ask('MDL').
-window.scanpad = { radio };
+window.scanpad = { radio, speaker };
+
+// The radio sends its audio over Bluetooth all the time; this plays it here.
+$('audio').onclick = async () => {
+  if (speaker.on) speaker.stop();
+  else {
+    try { await speaker.start(); }
+    catch (e) { toast(e.message || String(e)); }
+  }
+  $('audio').textContent = speaker.on ? '🔊 Audio' : '🔇 Audio';
+  $('audio').classList.toggle('on', speaker.on);
+};
 
 $('connect').onclick = async () => {
   if (radio.connected || $('connect').textContent === 'Disconnect') return radio.disconnect();

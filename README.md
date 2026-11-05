@@ -43,6 +43,14 @@ first.
    another device. **Defaults** offers the built-in pad sets (below); picking
    one replaces all four banks.
 8. Swipe left or right across the pads to change banks.
+9. **🔇 Audio** plays the radio's sound on this device (tap it once; browsers
+   only start sound after a tap). The SDS150 sends its audio over Bluetooth
+   as Opus packets; ScanPad decodes them in the browser. How smooth it is
+   depends on how fast the device's Bluetooth link runs: on a Windows PC in
+   Chrome only about a third of the audio got through.
+
+ScanPad pauses its screen readings while audio is coming in, because the radio
+stops sending sound for about half a second to answer each one.
 
 ## Pad sets
 
@@ -119,6 +127,9 @@ arrow keys switch banks. Space resumes scanning.
 
 - `index.html` — the pad
 - `sds150.js` — SDS150 Bluetooth link: framing, replies, tune command
+- `speaker.js` — plays the radio's Bluetooth audio
+- `vendor/opus-decoder.min.js` — Opus decoder in WebAssembly, from
+  [wasm-audio-decoders](https://github.com/eshaz/wasm-audio-decoders) (MIT)
 - `probe.html` — a test bench for trying raw commands on the radio
 - `pads/` — the pad sets, listed in `pads/index.json`
 
