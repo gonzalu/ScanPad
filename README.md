@@ -26,9 +26,53 @@ first.
    frequency you type, or **a tagged channel** from your favorites, by its
    Sentinel number tag (list.system.channel, e.g. `1.1.3`). **Use what's on
    now** fills in the tag of the channel the radio is on. Tag pads show a ★.
-   **Done** when finished.
+   A tag pad can also hold a frequency, which it tunes instead if the radio
+   has no channel with that tag. **Done** when finished.
 6. **Export** saves your pads to `scanpad.json`; **Import** loads them on
-   another device.
+   another device. **Defaults** puts back the default set.
+
+## Default pads
+
+A first visit loads [`pads/default.json`](pads/default.json):
+
+| Bank | Pads |
+| --- | --- |
+| A | NOAA weather WX1–WX7, aviation emergency 121.5, air-to-air 122.75, marine 16 and 22A, CB 9 and 19, FRS/GMRS 1, GMRS 20, MURS 1 |
+| B | Ham calling frequencies (6 m, 2 m, 1.25 m, 70 cm), APRS, the ISS (voice, APRS, repeater), and eight New York City FM stations |
+| C | JFK: tower, ground, clearance, and New York TRACON (N90) approaches and departures |
+| D | LaGuardia: the same |
+
+Banks A and B tune by frequency and work on any SDS150. The airport pads also
+carry number tags from the author's own favorites lists (Aviation NYC is list
+2), so on that radio they jump to the programmed channel. On yours they tune
+the frequency instead, unless your tags happen to match.
+
+## Make your own pads
+
+Build pads in the app with **Edit**, then **Export** to keep them. Or write a
+`scanpad.json` by hand (or ask an AI to) and **Import** it. Feel free to fork
+the project and ship your own defaults. The format is four banks of 16 pads
+each (`null` is an empty pad):
+
+```json
+{
+  "bank": "A",
+  "banks": {
+    "A": [
+      { "name": "NOAA WX1", "mhz": "162.5500", "mode": "NFM", "color": "#5ad16b" },
+      { "kind": "tag", "name": "LGA Tower", "tag": "2.1.201", "mhz": "118.7000", "mode": "AM", "color": "#ff5a36" },
+      null
+    ],
+    "B": [], "C": [], "D": []
+  }
+}
+```
+
+- `mhz`: frequency in MHz. Required unless the pad has a tag.
+- `kind: "tag"` with `tag`: jump to the channel with this Sentinel number tag
+  (favorites list . system . channel).
+- `mode`: shown on the pad only; the radio picks the modulation itself.
+- `color`: any CSS color.
 
 On a keyboard the grid is `1 2 3 4 / Q W E R / A S D F / Z X C V`, and the
 arrow keys switch banks. Space resumes scanning.
@@ -38,6 +82,7 @@ arrow keys switch banks. Space resumes scanning.
 - `index.html` — the pad
 - `sds150.js` — SDS150 Bluetooth link: framing, replies, tune command
 - `probe.html` — a test bench for trying raw commands on the radio
+- `pads/default.json` — the default pads
 
 ## How it talks to the radio
 

@@ -26,6 +26,7 @@
   .pad.live { box-shadow: 0 0 0 2px var(--c), 0 0 24px color-mix(in srgb, var(--c) 70%, transparent); background: linear-gradient(160deg, color-mix(in srgb, var(--c) 70%, #111), color-mix(in srgb, var(--c) 35%, #0a0a0a)); }
   .pad .name { font-weight: 700; font-size: clamp(12px, 2.4vw, 18px); line-height: 1.15; overflow-wrap: anywhere; }
   .pad .freq { font: clamp(11px, 1.8vw, 14px) ui-monospace, Menlo, Consolas, monospace; color: color-mix(in srgb, var(--text) 75%, transparent); margin-top: 2px; }
+  .pad .tag { font: clamp(10px, 1.6vw, 12px) ui-monospace, Menlo, Consolas, monospace; color: color-mix(in srgb, var(--text) 55%, transparent); margin-top: 1px; }
   .pad .key { position: absolute; top: 8px; right: 10px; font: 11px ui-monospace, monospace; color: var(--dim); }
   body.editing .pad { outline: 1px dashed var(--dim); outline-offset: -6px; }
   dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 12px; padding: 16px; width: min(360px, calc(100vw - 32px)); }
@@ -54,6 +55,7 @@
   <button id="edit">Edit</button>
   <button id="export">Export</button>
   <button id="import">Import</button>
+  <button id="defaults">Defaults</button>
   <input id="file" type="file" accept=".json,application/json" hidden>
 </header>
 
@@ -71,7 +73,7 @@
       <button type="button" id="kindTag">A tagged channel</button>
     </div>
     <div id="freqBox">
-      <label>Frequency (MHz)</label>
+      <label id="mhzLabel">Frequency (MHz)</label>
       <input type="text" id="fMhz" inputmode="decimal" placeholder="e.g. 470.8625">
     </div>
     <div id="tagBox">
@@ -114,15 +116,23 @@ let screen = null;     // what the radio last showed: { mhz, name, tag }
 let liveSteps = null;
 let pollTimer = null;
 
+// Saved pads, or empty banks until the default set (pads/default.json) arrives.
 function load() {
   try {
     const s = JSON.parse(localStorage.getItem(STORE));
     if (s && s.banks) return s;
   } catch {}
-  const banks = Object.fromEntries(BANKS.map(b => [b, Array(16).fill(null)]));
-  banks.A[0] = { name: 'NYPD Citywide 3', mhz: '470.8625', color: '#3a8dff' };
-  banks.A[1] = { name: 'NOAA Weather', mhz: '162.5500', color: '#5ad16b' };
-  return { bank: 'A', banks };
+  return { bank: 'A', banks: Object.fromEntries(BANKS.map(b => [b, Array(16).fill(null)])), fresh: true };
+}
+function usePads(s) {
+  if (!s.banks || !BANKS.every(b => Array.isArray(s.banks[b]))) throw new Error('not a ScanPad file');
+  state = { bank: BANKS.includes(s.bank) ? s.bank : 'A', banks: s.banks };
+  save(); renderBanks(); renderGrid();
+}
+async function loadDefaults() {
+  const r = await fetch('pads/default.json', { cache: 'no-cache' });
+  if (!r.ok) throw new Error(`couldn't fetch the default pads (${r.status})`);
+  usePads(await r.json());
 }
 function save() {
   try { localStorage.setItem(STORE, JSON.stringify(state)); } catch {}
@@ -200,24 +210,25 @@ function renderGrid() {
     const el = document.createElement('button');
     el.className = 'pad' + (p ? '' : ' empty') + (p && isLive(p) ? ' live' : '');
     if (p) el.style.setProperty('--c', p.color);
-    el.innerHTML = `<span class="key"></span><span class="name"></span><span class="freq"></span>`;
+    el.innerHTML = `<span class="key"></span><span class="name"></span><span class="freq"></span><span class="tag"></span>`;
     el.querySelector('.key').textContent = KEYS[i].toUpperCase();
     el.querySelector('.name').textContent = p ? p.name : (editing ? '+ add' : '');
-    el.querySelector('.freq').textContent = !p ? '' : padDetail(p);
+    el.querySelector('.freq').textContent = p && p.mhz ? [fmtMhz(p.mhz), p.mode].filter(Boolean).join(' ') : '';
+    el.querySelector('.tag').textContent = p && p.kind === 'tag' ? `★ ${p.tag}` : '';
     el.onclick = () => press(i);
     return el;
   }));
 }
 
-// A tag pad is live when the radio shows that tag; a frequency pad when it shows that frequency.
+// A pad is live when the radio shows its tag or its frequency.
 function isLive(p) {
-  if (p.kind === 'tag') return !!screen && screen.tag === p.tag;
-  return liveSteps !== null && liveSteps === mhzToSteps(p.mhz);
+  if (p.kind === 'tag' && screen && screen.tag === p.tag) return true;
+  return !!p.mhz && liveSteps !== null && liveSteps === mhzToSteps(p.mhz);
 }
 
-// Second line on a pad: the frequency, or a star and the number tag.
-function padDetail(p) {
-  return p.kind === 'tag' ? `★ ${p.tag}` : parseFloat(p.mhz).toFixed(4);
+// 123.9 -> "123.900", 462.5625 -> "462.5625".
+function fmtMhz(mhz) {
+  return parseFloat(mhz).toFixed(4).replace(/0$/, '');
 }
 
 async function press(i) {
@@ -225,8 +236,12 @@ async function press(i) {
   if (editing || !p) return openEditor(i);
   if (!radio.connected) return toast('Connect to the SDS150 first');
   try {
-    if (p.kind === 'tag') await radio.jumpTag(p.tag);
-    else { await radio.tune(p.mhz); liveSteps = mhzToSteps(p.mhz); }
+    if (p.kind === 'tag') {
+      // Someone else's radio won't have these tags; a tag pad that knows its
+      // frequency still works there, it just tunes instead of jumping.
+      try { await radio.jumpTag(p.tag); }
+      catch (e) { if (!p.mhz || !/has tag/.test(e.message)) throw e; await radio.tune(p.mhz); liveSteps = mhzToSteps(p.mhz); }
+    } else { await radio.tune(p.mhz); liveSteps = mhzToSteps(p.mhz); }
     renderGrid();
   } catch (e) { toast(e.message || String(e)); }
 }
@@ -235,7 +250,7 @@ function openEditor(i) {
   editIndex = i;
   const p = state.banks[state.bank][i];
   $('fName').value = p ? p.name : '';
-  $('fMhz').value = p && p.kind !== 'tag' ? p.mhz : '';
+  $('fMhz').value = p && p.mhz ? fmtMhz(p.mhz) : '';
   $('fTag').value = p && p.kind === 'tag' ? p.tag : '';
   setKind(p && p.kind === 'tag' ? 'tag' : 'freq');
   pickedColor = p ? p.color : COLORS[i % COLORS.length];
@@ -249,7 +264,7 @@ function setKind(k) {
   editKind = k;
   $('kindFreq').className = k === 'freq' ? 'on' : '';
   $('kindTag').className = k === 'tag' ? 'on' : '';
-  $('freqBox').style.display = k === 'freq' ? '' : 'none';
+  $('mhzLabel').textContent = k === 'freq' ? 'Frequency (MHz)' : 'Frequency (MHz, optional: tuned if the radio has no such tag)';
   $('tagBox').style.display = k === 'tag' ? '' : 'none';
 }
 $('kindFreq').onclick = () => setKind('freq');
@@ -279,16 +294,23 @@ $('dlg').querySelector('form').addEventListener('submit', e => {
   e.preventDefault();
   const pads = state.banks[state.bank];
   const v = e.submitter ? e.submitter.value : 'save';
+  const old = pads[editIndex];
   if (v === 'clear') pads[editIndex] = null;
-  if (v === 'save' && editKind === 'tag') {
-    let t;
-    try { t = parseTag($('fTag').value); } catch (err) { toast(err.message); return; }
-    const tag = `${t.fl}.${t.sys}.${t.chan}`;
-    pads[editIndex] = { kind: 'tag', name: $('fName').value.trim() || `Tag ${tag}`, tag, color: pickedColor };
-  } else if (v === 'save') {
-    const n = parseFloat($('fMhz').value.trim());
-    if (!(n >= 25 && n <= 1300)) { toast('Frequency must be between 25 and 1300 MHz'); return; }
-    pads[editIndex] = { name: $('fName').value.trim() || n.toFixed(4), mhz: n.toFixed(4), color: pickedColor };
+  if (v === 'save') {
+    const raw = $('fMhz').value.trim();
+    const n = parseFloat(raw);
+    if ((editKind === 'freq' || raw) && !(n >= 25 && n <= 1300)) { toast('Frequency must be between 25 and 1300 MHz'); return; }
+    const mhz = raw ? n.toFixed(4) : undefined;
+    // The mode is display-only (the radio picks it); keep it while the frequency is unchanged.
+    const mode = old && old.mode && old.mhz === mhz ? old.mode : undefined;
+    if (editKind === 'tag') {
+      let t;
+      try { t = parseTag($('fTag').value); } catch (err) { toast(err.message); return; }
+      const tag = `${t.fl}.${t.sys}.${t.chan}`;
+      pads[editIndex] = { kind: 'tag', name: $('fName').value.trim() || `Tag ${tag}`, tag, mhz, mode, color: pickedColor };
+    } else {
+      pads[editIndex] = { name: $('fName').value.trim() || fmtMhz(mhz), mhz, mode, color: pickedColor };
+    }
   }
   $('dlg').close();
   save();
@@ -315,13 +337,13 @@ $('import').onclick = () => $('file').click();
 $('file').onchange = async () => {
   const f = $('file').files[0];
   if (!f) return;
-  try {
-    const s = JSON.parse(await f.text());
-    if (!s.banks || !BANKS.every(b => Array.isArray(s.banks[b]))) throw new Error('not a ScanPad file');
-    state = { bank: BANKS.includes(s.bank) ? s.bank : 'A', banks: s.banks };
-    save(); renderBanks(); renderGrid();
-  } catch (e) { toast(`Import failed: ${e.message}`); }
+  try { usePads(JSON.parse(await f.text())); }
+  catch (e) { toast(`Import failed: ${e.message}`); }
   $('file').value = '';
+};
+$('defaults').onclick = () => {
+  if (confirm('Replace all your pads with the default set? Export first if you want to keep them.'))
+    loadDefaults().catch(e => toast(e.message));
 };
 
 document.addEventListener('keydown', e => {
@@ -338,6 +360,7 @@ document.addEventListener('keydown', e => {
 
 renderBanks();
 renderGrid();
+if (state.fresh) loadDefaults().catch(e => toast(e.message));
 </script>
 </body>
 </html>
