@@ -22,7 +22,7 @@
   #banks button { flex: 1; font-weight: 700; letter-spacing: .1em; }
   /* The pads take whatever room is left on screen, on any device: square when
      the space is tall, up to 1.6:1 when it is wide, and never past its edges. */
-  #padArea { flex: 1; min-height: 0; container-type: size; }
+  #padArea { flex: 1; min-height: 0; container-type: size; touch-action: pan-y pinch-zoom; }
   #grid { --g: 10px; --w: calc((100cqw - 3 * var(--g)) / 4); --h: calc((100cqh - 3 * var(--g)) / 4);
     display: grid; gap: var(--g); justify-content: center;
     grid-template-columns: repeat(4, min(var(--w), var(--h) * 1.6)); grid-template-rows: repeat(4, min(var(--h), var(--w))); }
@@ -290,14 +290,22 @@ function renderBanks() {
   }));
 }
 
+// The 16 pad buttons are made once and updated in place: the radio's screen
+// arrives every 1.5 s, and replacing a button under a finger loses its tap or
+// swipe (iOS keeps sending a touch to the element it started on).
 function renderGrid() {
   const pads = state.banks[state.bank];
-  $('grid').replaceChildren(...pads.map((p, i) => {
+  if (!$('grid').children.length) $('grid').append(...KEYS.map((k, i) => {
     const el = document.createElement('button');
-    el.className = 'pad' + (p ? '' : ' empty') + (p && isLive(p) ? ' live' : '');
-    if (p) el.style.setProperty('--c', p.color);
     el.innerHTML = `<span class="key"></span><span class="name"></span><span class="freq"></span><span class="tag"></span>`;
-    el.querySelector('.key').textContent = KEYS[i].toUpperCase();
+    el.querySelector('.key').textContent = k.toUpperCase();
+    el.onclick = () => press(i);
+    return el;
+  }));
+  pads.forEach((p, i) => {
+    const el = $('grid').children[i];
+    el.className = 'pad' + (p ? '' : ' empty') + (p && isLive(p) ? ' live' : '');
+    if (p) el.style.setProperty('--c', p.color); else el.style.removeProperty('--c');
     el.querySelector('.name').textContent = p ? p.name : (editing ? '+ add' : '');
     if (p && p.kind === 'qk' && p.only) {
       el.querySelector('.freq').textContent = flipping.has(p.qk) ? 'Switching…' : isLive(p) ? 'SCANNING' : 'Scan only this';
@@ -309,9 +317,7 @@ function renderGrid() {
       el.querySelector('.freq').textContent = p && p.mhz ? [fmtMhz(p.mhz), p.mode].filter(Boolean).join(' ') : '';
       el.querySelector('.tag').textContent = p && p.kind === 'tag' ? `★ ${p.tag}` : '';
     }
-    el.onclick = () => press(i);
-    return el;
-  }));
+  });
 }
 
 // A pad is live when the radio shows its tag or its frequency.
@@ -626,16 +632,24 @@ function stepBank(d) {
 }
 
 // Swipe across the pads to change banks: left for the next, right for the
-// previous. A swipe never presses the pad it started on.
+// previous. A swipe never presses the pad it started on. Fingers are followed
+// with touch events, because iOS cancels the pointer events as soon as a
+// finger moves; a mouse drag (desktop) uses pointer events.
 let swipeFrom = null, swiped = false, swipedAt = 0;
-$('padArea').addEventListener('pointerdown', e => { swipeFrom = { x: e.clientX, y: e.clientY }; swiped = false; });
-window.addEventListener('pointerup', e => {
+const swipeStart = (x, y) => { swipeFrom = { x, y }; swiped = false; };
+function swipeEnd(x, y) {
   if (!swipeFrom) return;
-  const dx = e.clientX - swipeFrom.x, dy = e.clientY - swipeFrom.y;
+  const dx = x - swipeFrom.x, dy = y - swipeFrom.y;
   swipeFrom = null;
   if (Math.abs(dx) > 50 && Math.abs(dx) > 1.5 * Math.abs(dy)) { swiped = true; swipedAt = Date.now(); stepBank(dx < 0 ? 1 : -1); }
-});
-window.addEventListener('pointercancel', () => { swipeFrom = null; });
+}
+$('padArea').addEventListener('touchstart', e => {
+  if (e.touches.length === 1) swipeStart(e.touches[0].clientX, e.touches[0].clientY); else swipeFrom = null;
+}, { passive: true });
+$('padArea').addEventListener('touchend', e => swipeEnd(e.changedTouches[0].clientX, e.changedTouches[0].clientY));
+$('padArea').addEventListener('touchcancel', () => { swipeFrom = null; });
+$('padArea').addEventListener('pointerdown', e => { if (e.pointerType === 'mouse') swipeStart(e.clientX, e.clientY); });
+window.addEventListener('pointerup', e => { if (e.pointerType === 'mouse') swipeEnd(e.clientX, e.clientY); });
 $('padArea').addEventListener('click', e => { if (swiped) { swiped = false; e.stopPropagation(); } }, true);
 
 renderBanks();
