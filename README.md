@@ -74,6 +74,10 @@ each (`null` is an empty pad):
 - `mode`: shown on the pad only; the radio picks the modulation itself.
 - `color`: any CSS color.
 
+The SDS150 drops a Bluetooth link by itself now and then. ScanPad reconnects
+on its own, retrying for about three minutes, and shows "Link dropped,
+reconnecting…" while it does.
+
 On a keyboard the grid is `1 2 3 4 / Q W E R / A S D F / Z X C V`, and the
 arrow keys switch banks. Space resumes scanning.
 

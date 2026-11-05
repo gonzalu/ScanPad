@@ -37,12 +37,14 @@ export class SDS150 {
       optionalServices: [SERVICE, ...STD_SERVICES],
     });
     // Drops while connecting are expected (the radio bonds, then drops and
-    // reconnects), so only report a disconnect once the link is up.
+    // reconnects), so only act on a drop once the link is up.
     this.device.ongattserverdisconnected = () => {
       const wasUp = !!this.chr;
       this.chr = null;
-      if (wasUp) this.onState('disconnected');
+      if (wasUp && !this.manual) this._reconnect();
+      else if (wasUp) this.onState('disconnected');
     };
+    this.manual = false;
     this.onState('connecting');
     let lastError;
     for (let attempt = 1; attempt <= 4; attempt++) {
@@ -86,8 +88,24 @@ export class SDS150 {
     this.chr = chr;
   }
 
+  // The SDS150 drops a quiet, healthy link now and then (AlphaScan reconnects
+  // for the same reason), so win it back without the device picker.
+  async _reconnect() {
+    const waits = [1, 2, 4, 8, 15, 30, 30, 30, 30, 30];
+    for (let i = 0; i < waits.length && !this.manual; i++) {
+      this.onState('reconnecting');
+      await new Promise(r => setTimeout(r, waits[i] * 1000));
+      if (this.manual) break;
+      try { await this._open(); this.onState('connected'); return; }
+      catch { if (this.device.gatt.connected) this.device.gatt.disconnect(); }
+    }
+    this.onState('disconnected');
+  }
+
   disconnect() {
+    this.manual = true;
     if (this.device && this.device.gatt.connected) this.device.gatt.disconnect();
+    else this.onState('disconnected');
   }
 
   async send(cmd) {

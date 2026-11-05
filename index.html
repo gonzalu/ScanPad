@@ -42,6 +42,21 @@
   .seg button:first-child { border-radius: 8px 0 0 8px; }
   .seg button:last-child { border-radius: 0 8px 8px 0; }
   .hint { color: var(--dim); font-size: 12px; margin-top: 6px; }
+  /* A phone on its side: controls in a left column, and the pads stretch to
+     the screen's height instead of staying square, so all 16 fit. */
+  @media (orientation: landscape) and (max-height: 600px) {
+    body { max-width: none; height: 100dvh; display: grid; grid-template-columns: minmax(190px, 26%) 1fr; grid-template-rows: auto auto 1fr; gap: 8px 12px;
+      padding: 8px max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left)); }
+    header, #lcd, #banks { grid-column: 1; }
+    header { gap: 6px; }
+    header button { padding: 6px 9px; }
+    h1 { width: 100%; }
+    #lcd { font-size: 15px; min-height: 0; flex-direction: column; align-items: flex-start; gap: 2px; }
+    #banks { flex-direction: column; align-self: start; }
+    #grid { grid-column: 2; grid-row: 1 / span 3; grid-template-rows: repeat(4, minmax(0, 1fr)); min-height: 0; gap: 8px; }
+    .pad { aspect-ratio: auto; padding: 6px 8px; min-height: 0; overflow: hidden; }
+    .pad .name { font-size: clamp(12px, 3.6vh, 16px); }
+  }
   #toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: #3a1010; border: 1px solid #a33; padding: 8px 14px; border-radius: 8px; display: none; }
 </style>
 </head>
@@ -97,7 +112,7 @@
 <script type="module">
 // Bump ?v= whenever sds150.js changes: browsers (Bluefy especially) keep the
 // old module for up to 10 minutes otherwise, and pair it with the new page.
-import { SDS150, mhzToSteps, parseScreen, parseTag } from './sds150.js?v=4';
+import { SDS150, mhzToSteps, parseScreen, parseTag } from './sds150.js?v=5';
 
 const BANKS = ['A', 'B', 'C', 'D'];
 const COLORS = ['#ff5a36', '#ffb02e', '#ffe04a', '#5ad16b', '#2ec4b6', '#3a8dff', '#9b6bff', '#ff5ab4', '#c8c8c8'];
@@ -148,9 +163,9 @@ function toast(msg) {
 
 const radio = new SDS150({
   onState(s) {
-    const label = { choosing: 'Choosing…', connecting: 'Connecting…', connected: 'Connected', disconnected: 'Disconnected' }[s];
+    const label = { choosing: 'Choosing…', connecting: 'Connecting…', reconnecting: 'Link dropped, reconnecting…', connected: 'Connected', disconnected: 'Disconnected' }[s];
     $('status').textContent = label;
-    $('connect').textContent = s === 'connected' ? 'Disconnect' : 'Connect';
+    $('connect').textContent = s === 'connected' || s === 'reconnecting' ? 'Disconnect' : 'Connect';
     clearInterval(pollTimer);
     if (s === 'connected') {
       // Reading the screen every 1.5 s shows what the radio is on and keeps the link busy.
@@ -180,7 +195,7 @@ const radio = new SDS150({
 });
 
 $('connect').onclick = async () => {
-  if (radio.connected) return radio.disconnect();
+  if (radio.connected || $('connect').textContent === 'Disconnect') return radio.disconnect();
   try { await radio.connect(); }
   catch (e) {
     $('status').textContent = 'Not connected';
