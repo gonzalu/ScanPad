@@ -1,0 +1,18 @@
+{
+  "default": "nationwide",
+  "sets": [
+    {"id": "nationwide", "name": "Nationwide basics", "about": "NOAA weather, aviation emergency, marine, CB, FRS/GMRS/MURS, ham calling, the ISS, national interop calling channels"},
+    {"id": "new-york", "name": "New York City", "about": "JFK, LaGuardia, NYPD and NY State Police channels in the clear, Newark and Teterboro; by frequency, works on any radio"},
+    {"id": "washington-dc", "name": "Washington DC", "about": "DCA, Dulles, Metro and Amtrak police, Capitol and Park Service channels in the clear, DC interop; by frequency, works on any radio"},
+    {"id": "chicago", "name": "Chicago", "about": "O'Hare, Midway, Chicago Fire fireground, police citywide channels, Metra and Amtrak police, Illinois interop; by frequency, works on any radio"},
+    {"id": "detroit", "name": "Detroit", "about": "Metro (DTW), City, Willow Run and Pontiac airports, Wayne County and suburban channels, Michigan interop, rail; by frequency, works on any radio"},
+    {"id": "miami", "name": "Miami", "about": "MIA, Fort Lauderdale, Opa-locka, Miami-Dade Fire Rescue, MEDCOM, marine, Florida interop; by frequency, works on any radio"},
+    {"id": "atlanta", "name": "Atlanta", "about": "Hartsfield-Jackson, Peachtree-DeKalb, Fulton County, Atlanta police talk-arounds, Georgia State Patrol, rail; by frequency, works on any radio"},
+    {"id": "austin", "name": "Austin", "about": "AUS and nearby fields, Travis County fire, suburban police, Texas DPS, Texas interop, rail; by frequency, works on any radio"},
+    {"id": "denver", "name": "Denver", "about": "DEN, Centennial, Rocky Mountain, Denver backup and event channels, Forest Service, State Patrol, rail; by frequency, works on any radio"},
+    {"id": "los-angeles", "name": "Los Angeles", "about": "LAX, Burbank, Van Nuys, Santa Monica, Long Beach, LAFD, County Fire, Sheriff, LAPD stations, CHP, marine; by frequency, works on any radio"},
+    {"id": "san-francisco", "name": "San Francisco", "about": "SFO, Oakland, San Jose, SFFD and SFPD direct channels, CHP, marine, California interop; by frequency, works on any radio"},
+    {"id": "n2mav-new-york", "name": "New York: N2MAV's radio", "about": "The author's own: NYPD and NYSP, JFK, LaGuardia, by his Sentinel number tags (Police NY = list 1, Aviation NYC = list 2)"},
+    {"id": "n2mav-ny-airports", "name": "NY area airports: N2MAV's radio", "about": "Newark, Teterboro, Stewart, Westchester, Republic, MacArthur, Gabreski, by the author's number tags"}
+  ]
+}

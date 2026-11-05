@@ -36,25 +36,39 @@ first.
    it on the current bank. A switch pad (**A scan switch** in Edit) takes a
    quick key such as `2` (list 2), `1.5` (system 5 in list 1) or `1.2.3`
    (department 3 of system 2 in list 1), glows while it's on, and flips it
-   when pressed.
+   when pressed. Tick **Scan only this list** on a list's switch (e.g. `2`)
+   and the pad turns that list on, every other list off, and starts the
+   radio scanning, all in one press.
 7. **Export** saves your pads to `scanpad.json`; **Import** loads them on
-   another device. **Defaults** puts back the default set.
+   another device. **Defaults** offers the built-in pad sets (below); picking
+   one replaces all four banks.
+8. Swipe left or right across the pads to change banks.
 
-## Default pads
+## Pad sets
 
-A first visit loads [`pads/default.json`](pads/default.json):
+**Defaults** lists the sets in [`pads/index.json`](pads/index.json); a first
+visit loads **Nationwide basics**.
 
-| Bank | Pads |
+| Set | What's in it |
 | --- | --- |
-| A | NOAA weather WX1–WX7, aviation emergency 121.5, air-to-air 122.75, marine 16 and 22A, CB 9 and 19, FRS/GMRS 1, GMRS 20, MURS 1 |
-| B | Ham calling frequencies (6 m, 2 m, 1.25 m, 70 cm), APRS, the ISS (voice, APRS, repeater), and eight New York City FM stations |
-| C | JFK: tower, ground, clearance, and New York TRACON (N90) approaches and departures |
-| D | LaGuardia: the same |
+| Nationwide basics | NOAA weather WX1–WX7, aviation emergency and air-to-air, marine, CB, FRS/GMRS/MURS, ham calling frequencies, APRS, the ISS, national interop calling channels |
+| New York City, Washington DC, Chicago, Detroit, Miami, Atlanta, Austin, Denver, Los Angeles, San Francisco | Bank A the main airport (tower, ground, clearance, ATIS, approach, departure), B the other airports, C police, fire and EMS channels that are in the clear, D weather, state police, interop, marine and rail |
+| New York: N2MAV's radio | The author's own: NYPD and NY State Police, JFK, LaGuardia |
+| NY area airports: N2MAV's radio | Newark, Teterboro, Stewart, Westchester, Republic, MacArthur, Gabreski |
 
-Banks A and B tune by frequency and work on any SDS150. The airport pads also
-carry number tags from the author's own favorites lists (Aviation NYC is list
-2), so on that radio they jump to the programmed channel. On yours they tune
-the frequency instead, unless your tags happen to match.
+The city sets tune by frequency, so they work on any SDS150. They only hold
+conventional channels: most big-city police and fire dispatch is on trunked
+digital systems, often encrypted, and a frequency pad can't follow a trunked
+talkgroup (each city file's `notes` says what was left out and why, and its
+`sources` where the frequencies came from). Frequencies change; corrections
+are welcome.
+
+The two N2MAV sets jump by number tag to channels in the author's favorites
+lists (Police NY is list 1, Aviation NYC is list 2), with the frequency as a
+fallback. On your radio a tag pad tunes its frequency instead, unless you give
+your channels the same tags in Sentinel (or edit the tags in the file; an AI
+can do the renumbering for you). Trunked talkgroups have no frequency to fall
+back on.
 
 ## Make your own pads
 
@@ -70,6 +84,7 @@ each (`null` is an empty pad):
     "A": [
       { "name": "NOAA WX1", "mhz": "162.5500", "mode": "NFM", "color": "#5ad16b" },
       { "kind": "tag", "name": "LGA Tower", "tag": "2.1.201", "mhz": "118.7000", "mode": "AM", "color": "#ff5a36" },
+      { "kind": "qk", "name": "Aviation only", "qk": "2", "only": true, "color": "#5ad16b" },
       null
     ],
     "B": [], "C": [], "D": []
@@ -82,12 +97,16 @@ each (`null` is an empty pad):
   (favorites list . system . channel).
 - `mode`: shown on the pad only; the radio picks the modulation itself.
 - `kind: "qk"` with `qk`: a scan switch for that quick key (`"2"`, `"1.5"`,
-  `"1.2.3"`).
+  `"1.2.3"`). Add `"only": true` on a list's switch to make it a scan-only
+  pad.
 - `color`: any CSS color.
 
 The file can also carry `"names"`, keyed the same way (`{"1": "Police NY",
-"1.5": "Metro-25"}`), to label the Scan lists panel. The default file's names
-are the author's own lists.
+"1.5": "Metro-25"}`), to label the Scan lists panel.
+
+To add a set to **Defaults**, put its file in `pads/` and list it in
+`pads/index.json` with an `id` (the file name without `.json`), a `name` and
+an `about` line.
 
 The SDS150 drops a Bluetooth link by itself now and then. ScanPad reconnects
 on its own, retrying for about three minutes, and shows "Link dropped,
@@ -101,7 +120,7 @@ arrow keys switch banks. Space resumes scanning.
 - `index.html` — the pad
 - `sds150.js` — SDS150 Bluetooth link: framing, replies, tune command
 - `probe.html` — a test bench for trying raw commands on the radio
-- `pads/default.json` — the default pads
+- `pads/` — the pad sets, listed in `pads/index.json`
 
 ## How it talks to the radio
 

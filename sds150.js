@@ -159,6 +159,29 @@ export class SDS150 {
     });
   }
 
+  // Scan just one favorites list: switch it on and every other list off, then
+  // leave any hold and scan. Resolves with the lists' new states.
+  scanOnly(list) {
+    return this._exclusive(async () => {
+      const states = await this._readQuickKeys([]);
+      if (states[list] === 'none') throw new Error(`Favorites list quick key ${list} isn't assigned on the radio`);
+      const want = states.map((s, k) => s === 'none' ? s : k === list ? 'on' : 'off');
+      if (want.some((s, k) => s !== states[k])) {
+        const reply = await this.ask(`FQK,${want.map(s => QK_STATES.indexOf(s)).join(',')}`, 3000);
+        if (!reply.endsWith(',OK')) throw new Error(`The radio refused the switch (${reply})`);
+        this.quietUntil = Date.now() + 4000;
+        await sleep(4000);
+      }
+      // Still deaf for a moment sometimes, so ask again before giving up.
+      for (let i = 1; ; i++) {
+        try { if ((await this.ask('JPM,SCN_MODE,0', 2500)) === 'JPM,OK') break; } catch (e) { if (i === 4) throw e; }
+        if (i === 4) throw new Error("The radio wouldn't go back to scan");
+        await sleep(1000);
+      }
+      return want;
+    });
+  }
+
   async _readQuickKeys(path) {
     const cmd = qkCommand(path);
     // Replies can lose their start when the radio pushes something at the same
