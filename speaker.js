@@ -3,9 +3,9 @@
 // then queued back to back on a Web Audio clock.
 
 // How far ahead of "now" to start playing, to ride out Bluetooth jitter, and
-// how far behind the queue may fall before it's cut back to that.
+// how far ahead the queue may run before packets are dropped.
 const LEAD = 0.2;
-const MAX_AHEAD = 0.6;
+const MAX_AHEAD = 0.8;
 
 let decoderLib = null;
 function loadDecoder() {
@@ -25,12 +25,6 @@ export class Speaker {
     this.on = false;
     this.next = 0;
     this.packets = 0;
-    this.heardAt = 0;
-  }
-
-  // Sound arrived in the last second and a half: a transmission is going on.
-  talking() {
-    return this.on && performance.now() - this.heardAt < 1500;
   }
 
   // Must be called from a tap: browsers (iOS especially) only let a page
@@ -64,14 +58,17 @@ export class Speaker {
     const pcm = out && out.channelData && out.channelData[0];
     if (!pcm || !pcm.length) return;
     this.packets++;
-    this.heardAt = performance.now();
+    // Running late (a gap in the stream): start again a little ahead. Too far
+    // ahead (a burst): drop this packet. Pulling the start back instead would
+    // play it over sound already queued, which is heard as an echo.
+    const now = this.ctx.currentTime;
+    if (this.next < now) this.next = now + LEAD;
+    else if (this.next > now + MAX_AHEAD) return;
     const buf = this.ctx.createBuffer(1, pcm.length, out.sampleRate || 16000);
     buf.getChannelData(0).set(pcm);
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
     src.connect(this.gain);
-    const now = this.ctx.currentTime;
-    if (this.next < now || this.next > now + MAX_AHEAD) this.next = now + LEAD;
     src.start(this.next);
     this.next += buf.duration;
   }

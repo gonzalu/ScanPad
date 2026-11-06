@@ -45,12 +45,11 @@ first.
 8. Swipe left or right across the pads to change banks.
 9. **🔇 Audio** plays the radio's sound on this device (tap it once; browsers
    only start sound after a tap). The SDS150 sends its audio over Bluetooth
-   as Opus packets; ScanPad decodes them in the browser. How smooth it is
-   depends on how fast the device's Bluetooth link runs: on a Windows PC in
-   Chrome only about a third of the audio got through.
+   as Opus packets; ScanPad decodes them in the browser.
 
-ScanPad pauses its screen readings while audio is coming in, because the radio
-stops sending sound for about half a second to answer each one.
+The radio sends its sound in step with what it's asked: left alone it sends
+almost none, so while audio is on ScanPad reads its screen every quarter of a
+second (as AlphaScan does), which brings nearly all of it through.
 
 ## Pad sets
 

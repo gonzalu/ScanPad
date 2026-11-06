@@ -171,7 +171,7 @@
 // Bump ?v= whenever sds150.js changes: browsers (Bluefy especially) keep the
 // old module for up to 10 minutes otherwise, and pair it with the new page.
 import { SDS150, mhzToSteps, parseScreen, parseTag } from './sds150.js?v=10';
-import { Speaker } from './speaker.js?v=2';
+import { Speaker } from './speaker.js?v=4';
 
 const BANKS = ['A', 'B', 'C', 'D'];
 const COLORS = ['#ff5a36', '#ffb02e', '#ffe04a', '#5ad16b', '#2ec4b6', '#3a8dff', '#9b6bff', '#ff5ab4', '#c8c8c8'];
@@ -239,12 +239,18 @@ const radio = new SDS150({
     clearInterval(pollTimer);
     if (s === 'connected') {
       // Reading the screen every 1.5 s shows what the radio is on and keeps the link busy.
+      // With audio on, every 0.25 s: the radio sends its sound in step with what
+      // it's asked, and a slower pace gets only a fraction of it (1 s of sound per
+      // 40 s with no asking at all; nearly all of it at 0.2-0.4 s, as AlphaScan does).
       // Held while a quick-key switch is in flight: the two replies garble each other.
-      // And held while audio is playing: the radio stops sending sound for
-      // half a second to answer each one. The screen catches up when it's quiet.
-      const poll = () => radio.busy || speaker.talking() || radio.send('GST').catch(() => {});
+      let polledAt = 0;
+      const poll = () => {
+        if (radio.busy || (!speaker.on && Date.now() - polledAt < 1400)) return;
+        polledAt = Date.now();
+        radio.send('GST').catch(() => {});
+      };
       poll();
-      pollTimer = setInterval(poll, 1500);
+      pollTimer = setInterval(poll, 250);
       refreshSwitchPads();
     } else if (s === 'disconnected') {
       liveSteps = null;
