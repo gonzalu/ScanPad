@@ -12,9 +12,9 @@
       {"name": "JFK Final Vector", "mhz": "132.4000", "mode": "AM", "color": "#3a8dff"},
       {"name": "JFK Kennedy Departure", "mhz": "135.9000", "mode": "AM", "color": "#9b6bff"},
       {"name": "JFK Satellite Approach", "mhz": "118.4000", "mode": "AM", "color": "#3a8dff"},
-      null,
-      null,
-      null,
+      {"name": "JFK ATIS", "mhz": "128.7250", "mode": "AM", "color": "#ffe04a"},
+      {"name": "JFK ATIS Arr SW", "mhz": "115.4000", "mode": "AM", "color": "#ffe04a"},
+      {"name": "JFK ATIS Arr NE", "mhz": "117.7000", "mode": "AM", "color": "#ffe04a"},
       null,
       null,
       null
@@ -32,8 +32,8 @@
       {"name": "LGA Final Vector", "mhz": "134.9000", "mode": "AM", "color": "#3a8dff"},
       {"name": "LGA LaGuardia Departure", "mhz": "120.4000", "mode": "AM", "color": "#9b6bff"},
       {"name": "LGA NYACK Departure", "mhz": "120.5500", "mode": "AM", "color": "#9b6bff"},
-      null,
-      null,
+      {"name": "LGA ATIS Arrival", "mhz": "125.9500", "mode": "AM", "color": "#ffe04a"},
+      {"name": "LGA ATIS Departure", "mhz": "127.0500", "mode": "AM", "color": "#ffe04a"},
       null,
       null
     ],

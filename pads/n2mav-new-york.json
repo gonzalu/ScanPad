@@ -49,9 +49,9 @@
       {"kind": "tag", "name": "JFK Final Vector", "tag": "2.2.103", "mhz": "132.4000", "mode": "AM", "color": "#3a8dff"},
       {"kind": "tag", "name": "JFK Kennedy Departure", "tag": "2.2.104", "mhz": "135.9000", "mode": "AM", "color": "#9b6bff"},
       {"kind": "tag", "name": "JFK Satellite Approach", "tag": "2.2.108", "mhz": "118.4000", "mode": "AM", "color": "#3a8dff"},
-      null,
-      null,
-      null,
+      {"name": "JFK ATIS", "mhz": "128.7250", "mode": "AM", "color": "#ffe04a"},
+      {"name": "JFK ATIS Arr SW", "mhz": "115.4000", "mode": "AM", "color": "#ffe04a"},
+      {"name": "JFK ATIS Arr NE", "mhz": "117.7000", "mode": "AM", "color": "#ffe04a"},
       null,
       null,
       {"kind": "qk", "name": "Aviation NYC only", "qk": "2", "only": true, "color": "#5ad16b"}
@@ -69,8 +69,8 @@
       {"kind": "tag", "name": "LGA Final Vector", "tag": "2.2.204", "mhz": "134.9000", "mode": "AM", "color": "#3a8dff"},
       {"kind": "tag", "name": "LGA LaGuardia Departure", "tag": "2.2.205", "mhz": "120.4000", "mode": "AM", "color": "#9b6bff"},
       {"kind": "tag", "name": "LGA NYACK Departure", "tag": "2.2.206", "mhz": "120.5500", "mode": "AM", "color": "#9b6bff"},
-      null,
-      null,
+      {"name": "LGA ATIS Arrival", "mhz": "125.9500", "mode": "AM", "color": "#ffe04a"},
+      {"name": "LGA ATIS Departure", "mhz": "127.0500", "mode": "AM", "color": "#ffe04a"},
       null,
       {"kind": "qk", "name": "Aviation NYC only", "qk": "2", "only": true, "color": "#5ad16b"}
     ]
