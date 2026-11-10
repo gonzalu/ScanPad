@@ -1,6 +1,6 @@
 {
   "bank": "A",
-  "names": {"1": "Police NY", "2": "Aviation NYC", "1.1": "NYPD (P25)", "1.1.1": "Citywide", "1.1.2": "Transit Bureau", "1.2": "New York City", "1.2.1": "NYPD - Bronx", "1.2.2": "NYPD - Citywide", "1.2.3": "NYPD - Tactical", "1.2.4": "NYPD - Transit Bureau", "1.3": "NY State Police", "1.3.1": "Statewide", "1.3.2": "Statewide - Mobile Repeaters", "1.3.3": "Troop K (Poughkeepsie)", "1.4": "NYS Interoperability", "1.4.1": "Interop - Law Enforcement", "1.5": "Metro-25/MTA MRRS", "1.5.1": "MTA Bridges and Tunnels", "1.5.2": "New York City", "1.5.3": "New York State Police", "1.6": "NYCICN", "1.6.1": "Sheriff's Office", "2.1": "Airports", "2.1.1": "JFK Air Traffic Control", "2.1.2": "LGA Air Traffic Control", "2.2": "New York TRACON (N90)", "2.2.1": "Areas - Kennedy (JFK)", "2.2.2": "Areas - LaGuardia (LGA)", "2.1.3": "Newark (EWR)", "2.1.4": "Teterboro (TEB)", "2.1.5": "Westchester (HPN)", "2.1.6": "Republic (FRG)", "2.1.7": "Gabreski (FOK)", "2.1.8": "MacArthur (ISP)", "2.1.9": "Stewart (SWF)"},
+  "names": {"1": "Police NY", "2": "Aviation NYC", "1.2": "New York City", "1.2.1": "NYPD - Bronx", "1.2.2": "NYPD - Citywide", "1.2.3": "NYPD - Tactical", "1.2.4": "NYPD - Transit Bureau", "1.3": "NY State Police", "1.3.1": "Statewide", "1.3.2": "Statewide - Mobile Repeaters", "1.3.3": "Troop K (Poughkeepsie)", "1.4": "NYS Interoperability", "1.4.1": "Interop - Law Enforcement", "1.5": "Metro-25/MTA MRRS", "1.5.1": "MTA Bridges and Tunnels", "1.5.2": "New York City", "1.5.3": "New York State Police", "1.6": "NYCICN", "1.6.1": "Sheriff's Office", "2.1": "Airports", "2.1.1": "JFK Air Traffic Control", "2.1.2": "LGA Air Traffic Control", "2.2": "New York TRACON (N90)", "2.2.1": "Areas - Kennedy (JFK)", "2.2.2": "Areas - LaGuardia (LGA)", "2.1.3": "Newark (EWR)", "2.1.4": "Teterboro (TEB)", "2.1.5": "Westchester (HPN)", "2.1.6": "Republic (FRG)", "2.1.7": "Gabreski (FOK)", "2.1.8": "MacArthur (ISP)", "2.1.9": "Stewart (SWF)"},
   "banks": {
     "A": [
       {"name": "NOAA WX1", "mhz": "162.5500", "mode": "NFM", "color": "#5ad16b"},
@@ -25,14 +25,14 @@
       {"kind": "tag", "name": "NYPD Citywide 2", "tag": "1.2.202", "mhz": "470.7125", "mode": "FM", "color": "#3a8dff"},
       {"kind": "tag", "name": "NYPD Citywide 3", "tag": "1.2.203", "mhz": "470.8625", "mode": "FM", "color": "#3a8dff"},
       {"kind": "tag", "name": "NYPD Bronx", "tag": "1.2.101", "mhz": "471.0375", "mode": "FM", "color": "#2ec4b6"},
-      {"kind": "tag", "name": "NYPD Citywide 1 P25", "tag": "1.1.101", "color": "#9b6bff"},
       {"kind": "tag", "name": "NYPD Citywide 2 P25", "tag": "1.5.201", "color": "#9b6bff"},
-      {"kind": "tag", "name": "NYPD Citywide 3 P25", "tag": "1.1.103", "color": "#9b6bff"},
-      {"kind": "tag", "name": "NYPD Highway P25", "tag": "1.1.104", "color": "#ffb02e"},
-      {"kind": "tag", "name": "NYPD SOD P25", "tag": "1.1.102", "color": "#ff5a36"},
       {"kind": "tag", "name": "NYPD SOD Tac G", "tag": "1.2.304", "mhz": "473.6875", "mode": "FM", "color": "#ff5a36"},
       {"kind": "tag", "name": "NYSP Troop NYC", "tag": "1.5.304", "color": "#ffe04a"},
       {"kind": "tag", "name": "NYSP Troop K", "tag": "1.3.301", "mhz": "155.5050", "mode": "NFM", "color": "#ffe04a"},
+      null,
+      null,
+      null,
+      null,
       null,
       null,
       null,
