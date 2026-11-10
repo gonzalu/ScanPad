@@ -25,8 +25,6 @@
   #lcdNameBox { overflow: hidden; white-space: nowrap; font-size: 22px; font-weight: 600; line-height: 1.25; }
   #lcdNameBox.slide { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 16px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 16px), transparent); }
   #lcdName { display: inline-block; }
-  #lcdName.slide { animation: lcdSlide var(--t) ease-in-out infinite alternate; }
-  @keyframes lcdSlide { 0%, 18% { transform: translateX(0); } 82%, 100% { transform: translateX(var(--dx)); } }
   #lcdBot { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; white-space: nowrap; min-height: 1.3em; }
   #lcdTag { color: var(--dim); overflow: hidden; text-overflow: ellipsis; }
   #lcdFreq { font-weight: 600; flex: none; }
@@ -351,14 +349,22 @@ function showScreen({ path = '', name = '—', tag = '', mode = '', mhz = '' } =
 }
 
 // A name too long for the strip slides to its end and back, pausing at each.
+// Started from script with the distance in pixels: Safari keeps the distance
+// of an earlier name if it's handed to a CSS animation in a variable.
 function slideName() {
   const el = $('lcdName'), box = $('lcdNameBox');
-  el.classList.remove('slide'); box.classList.remove('slide');
+  el.slide?.cancel(); el.slide = null;
+  box.classList.remove('slide');
   const over = el.offsetWidth - box.clientWidth;
   if (over <= 0) return;
-  el.style.setProperty('--dx', `${-over - 16}px`);  // its end clear of the fade
-  el.style.setProperty('--t', `${(2 + over / 40).toFixed(1)}s`);
-  el.classList.add('slide'); box.classList.add('slide');
+  const end = `translateX(${-over - 16}px)`;  // its end clear of the fade
+  el.slide = el.animate([
+    { offset: 0, transform: 'translateX(0)' },
+    { offset: 0.18, transform: 'translateX(0)', easing: 'ease-in-out' },
+    { offset: 0.82, transform: end },
+    { offset: 1, transform: end },
+  ], { duration: (2 + over / 40) * 1000, iterations: Infinity, direction: 'alternate' });
+  box.classList.add('slide');
 }
 new ResizeObserver(slideName).observe($('lcdNameBox'));
 
