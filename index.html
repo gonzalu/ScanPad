@@ -16,15 +16,20 @@
   button { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; font: inherit; cursor: pointer; }
   button.on { background: #3a2a0a; border-color: var(--lcd); color: var(--lcd); }
   .spacer { flex: 1; }
-  #lcd { background: #000; border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; font: 600 20px/1.3 ui-monospace, Menlo, Consolas, monospace; color: var(--lcd); min-height: 56px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-  #lcd small { display: block; color: var(--dim); font-size: 12px; font-weight: 400; }
-  /* The strip keeps one height whatever the radio shows, so the pads below
-     don't jump while it scans: the channel name stays on one line, the line
-     under it gets room for two, and anything longer ends in "…". */
-  #lcd > div:first-child { flex: 1; min-width: 0; }
-  #lcdName { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #lcd #lcdSub { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; min-height: 2.6em; }
-  #lcdFreq { flex: none; white-space: nowrap; }
+  /* The display strip, laid out like the radio's own screen: where it is on
+     top, the channel name big, its tag and frequency along the bottom. Every
+     line is one line high, so the strip keeps its height and the pads below
+     don't jump while it scans; a name too long for the strip slides sideways. */
+  #lcd { background: #000; border: 1px solid var(--line); border-radius: 10px; padding: 9px 14px 10px; color: var(--lcd); display: flex; flex-direction: column; gap: 2px; font-variant-numeric: tabular-nums; }
+  #lcdPath { font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 1.3em; }
+  #lcdNameBox { overflow: hidden; white-space: nowrap; font-size: 22px; font-weight: 600; line-height: 1.25; }
+  #lcdNameBox.slide { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 16px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 16px), transparent); }
+  #lcdName { display: inline-block; }
+  #lcdName.slide { animation: lcdSlide var(--t) ease-in-out infinite alternate; }
+  @keyframes lcdSlide { 0%, 18% { transform: translateX(0); } 82%, 100% { transform: translateX(var(--dx)); } }
+  #lcdBot { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; white-space: nowrap; min-height: 1.3em; }
+  #lcdTag { color: var(--dim); overflow: hidden; text-overflow: ellipsis; }
+  #lcdFreq { font-weight: 600; flex: none; }
   #banks { display: flex; gap: 8px; }
   #banks button { flex: 1; font-weight: 700; letter-spacing: .1em; }
   /* The pads take whatever room is left on screen, on any device: square when
@@ -38,11 +43,11 @@
   .pad.empty { --c: #333; opacity: .45; }
   .pad.live { box-shadow: 0 0 0 2px var(--c), 0 0 24px color-mix(in srgb, var(--c) 70%, transparent); background: linear-gradient(160deg, color-mix(in srgb, var(--c) 70%, #111), color-mix(in srgb, var(--c) 35%, #0a0a0a)); }
   /* Pad text scales with the pad (cqmin = 1% of its shorter side), and --fit
-     shrinks it further on a pad whose text wouldn't fit (see fitPad). */
-  .pad .name { font-weight: 700; font-size: calc(clamp(11px, 12cqmin, 26px) * var(--fit, 1)); line-height: 1.15; overflow-wrap: break-word; }
-  .pad .freq { font: calc(clamp(10px, 9.5cqmin, 20px) * var(--fit, 1)) ui-monospace, Menlo, Consolas, monospace; color: color-mix(in srgb, var(--text) 75%, transparent); margin-top: 2px; }
-  .pad .tag { font: calc(clamp(9px, 8cqmin, 17px) * var(--fit, 1)) ui-monospace, Menlo, Consolas, monospace; color: color-mix(in srgb, var(--text) 55%, transparent); margin-top: 1px; }
-  .pad .key { position: absolute; top: 6%; right: 8%; font: clamp(9px, 7cqmin, 15px) ui-monospace, monospace; color: var(--dim); }
+     shrinks it further on a bank whose text wouldn't fit (see fitPads). */
+  .pad .name { font-weight: 600; font-size: calc(clamp(11px, 12cqmin, 26px) * var(--fit, 1)); line-height: 1.15; overflow-wrap: break-word; }
+  .pad .freq { font: 500 calc(clamp(10px, 9.5cqmin, 20px) * var(--fit, 1)) / 1.2 system-ui, -apple-system, sans-serif; font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--text) 75%, transparent); margin-top: 2px; }
+  .pad .tag { font: 500 calc(clamp(9px, 8cqmin, 17px) * var(--fit, 1)) system-ui, -apple-system, sans-serif; font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--text) 55%, transparent); margin-top: 1px; }
+  .pad .key { position: absolute; top: 6%; right: 8%; font: 500 clamp(9px, 7cqmin, 15px) system-ui, -apple-system, sans-serif; color: var(--dim); }
   body.editing .pad { outline: 1px dashed var(--dim); outline-offset: -6px; }
   dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 12px; padding: 16px; width: min(360px, calc(100vw - 32px)); }
   dialog::backdrop { background: rgba(0,0,0,.6); }
@@ -66,8 +71,7 @@
     header { gap: 6px; }
     header button { padding: 6px 9px; }
     h1 { width: 100%; }
-    #lcd { font-size: 15px; min-height: 0; flex-direction: column; align-items: flex-start; gap: 2px; }
-    #lcd > div:first-child { width: 100%; }
+    #lcdNameBox { font-size: 18px; }
     #banks { display: grid; grid-template-columns: 1fr 1fr; align-self: start; gap: 6px; }
     #banks button { padding: 6px; }
     #padArea { grid-column: 2; grid-row: 1 / span 3; }
@@ -78,7 +82,9 @@
   @media (min-width: 1200px) and (min-height: 900px) {
     body { font-size: 18px; gap: 16px; max-width: none; }
     h1 { font-size: 24px; }
-    #lcd { font-size: 26px; min-height: 72px; }
+    #lcdPath { font-size: 13px; }
+    #lcdNameBox { font-size: 30px; }
+    #lcdBot { font-size: 18px; }
     #grid { --g: 14px; }
   }
   #qkDlg { width: min(460px, calc(100vw - 32px)); }
@@ -119,7 +125,7 @@
   <input id="file" type="file" accept=".json,application/json" hidden>
 </header>
 
-<div id="lcd"><div><span id="lcdName">—</span><small id="lcdSub">Connect to the SDS150</small></div><div id="lcdFreq"></div></div>
+<div id="lcd"><div id="lcdPath">Connect to the SDS150</div><div id="lcdNameBox"><span id="lcdName">—</span></div><div id="lcdBot"><span id="lcdTag"></span><span id="lcdFreq"></span></div></div>
 <div id="banks"></div>
 <div id="padArea"><div id="grid"></div></div>
 
@@ -263,9 +269,7 @@ const radio = new SDS150({
       refreshSwitchPads();
     } else if (s === 'disconnected') {
       liveSteps = null;
-      $('lcdName').textContent = '—';
-      $('lcdSub').textContent = 'Disconnected';
-      $('lcdFreq').textContent = '';
+      showScreen({ path: 'Disconnected' });
       renderGrid();
     }
   },
@@ -277,9 +281,7 @@ const radio = new SDS150({
     screen = scr;
     learnNames(scr);
     liveSteps = scr.mhz ? mhzToSteps(scr.mhz) : null;
-    $('lcdName').textContent = scr.name || '—';
-    $('lcdSub').textContent = [scr.system, scr.dept, scr.tag && `★ ${scr.tag}`].filter(Boolean).join(' · ') || 'Now on';
-    $('lcdFreq').textContent = scr.mhz ? `${parseFloat(scr.mhz).toFixed(4)} MHz` : '';
+    showScreen(describe(scr));
     renderGrid();
   },
 });
@@ -304,7 +306,7 @@ $('connect').onclick = async () => {
   catch (e) {
     $('status').textContent = 'Not connected';
     // Keep the reason on screen (in the display strip) so it can be read off an iPad.
-    if (e.name !== 'NotFoundError') { $('lcdName').textContent = 'Connect failed'; $('lcdSub').textContent = e.message || String(e); }
+    if (e.name !== 'NotFoundError') showScreen({ path: 'Connect failed', name: e.message || String(e) });
   }
 };
 
@@ -322,6 +324,43 @@ function renderBanks() {
     return btn;
   }));
 }
+
+// What the display strip shows for the radio's screen. Holding a frequency
+// (a frequency pad), the radio shows the frequency as the channel name; show
+// the pad's name instead, and the frequency only once.
+function describe(scr) {
+  const pad = padFor(scr);
+  const held = !scr.tag && (!scr.name || parseFloat(scr.name) === parseFloat(scr.mhz));
+  if (held) return { path: 'Holding a frequency', name: pad ? pad.name : 'Frequency', mode: pad?.mode, mhz: scr.mhz };
+  return { path: [scr.system, scr.dept].filter(Boolean).join(' › '), name: scr.name || '—', tag: scr.tag, mode: pad?.mode, mhz: scr.mhz };
+}
+
+// The pad for what the radio is on, by tag or else by frequency: this bank's first.
+function padFor(scr) {
+  const steps = scr.mhz ? mhzToSteps(scr.mhz) : null;
+  const pads = [state.bank, ...BANKS.filter(b => b !== state.bank)].flatMap(b => state.banks[b]).filter(p => p && p.kind !== 'qk');
+  return (scr.tag && pads.find(p => p.kind === 'tag' && p.tag === scr.tag))
+    || (steps !== null && pads.find(p => p.mhz && mhzToSteps(p.mhz) === steps)) || null;
+}
+
+function showScreen({ path = '', name = '—', tag = '', mode = '', mhz = '' } = {}) {
+  $('lcdPath').textContent = path;
+  $('lcdTag').textContent = [tag && `★ ${tag}`, mode].filter(Boolean).join(' · ');
+  $('lcdFreq').textContent = mhz ? `${parseFloat(mhz).toFixed(4)} MHz` : '';
+  if ($('lcdName').textContent !== name) { $('lcdName').textContent = name; slideName(); }
+}
+
+// A name too long for the strip slides to its end and back, pausing at each.
+function slideName() {
+  const el = $('lcdName'), box = $('lcdNameBox');
+  el.classList.remove('slide'); box.classList.remove('slide');
+  const over = el.offsetWidth - box.clientWidth;
+  if (over <= 0) return;
+  el.style.setProperty('--dx', `${-over - 16}px`);  // its end clear of the fade
+  el.style.setProperty('--t', `${(2 + over / 40).toFixed(1)}s`);
+  el.classList.add('slide'); box.classList.add('slide');
+}
+new ResizeObserver(slideName).observe($('lcdNameBox'));
 
 // The 16 pad buttons are made once and updated in place: the radio's screen
 // arrives every 1.5 s, and replacing a button under a finger loses its tap or
@@ -351,21 +390,23 @@ function renderGrid() {
       el.querySelector('.tag').textContent = p && p.kind === 'tag' ? `★ ${p.tag}` : '';
     }
   });
-  [...$('grid').children].forEach(fitPad);
+  fitPads();
 }
 
-// A long name on a small pad: shrink the pad's text until it fits. The text
-// sits at the bottom of the pad, so what doesn't fit runs off the top.
-function fitPad(el) {
-  const key = `${el.textContent}|${el.clientWidth}x${el.clientHeight}`;
-  if (el.fitKey === key) return;  // the screen is read up to 4 times a second
-  el.fitKey = key;
-  el.style.removeProperty('--fit');
-  const over = () => el.getBoundingClientRect().top + el.clientTop + parseFloat(getComputedStyle(el).paddingTop)
+// Long names on small pads: shrink the text until every pad's fits, by the
+// same amount on all of them so the bank still reads as one. The text sits at
+// the bottom of a pad, so what doesn't fit runs off the top.
+function fitPads() {
+  const grid = $('grid'), pads = [...grid.children];
+  const key = pads.map(el => el.textContent).join('|') + `|${grid.clientWidth}x${grid.clientHeight}`;
+  if (grid.fitKey === key) return;  // the screen is read up to 4 times a second
+  grid.fitKey = key;
+  const over = el => el.getBoundingClientRect().top + el.clientTop + parseFloat(getComputedStyle(el).paddingTop)
     - el.querySelector('.name').getBoundingClientRect().top;
-  for (let f = 0.95; f > 0.55 && over() > 0.5; f -= 0.05) el.style.setProperty('--fit', f.toFixed(2));
+  grid.style.removeProperty('--fit');
+  for (let f = 0.95; f > 0.55 && pads.some(el => over(el) > 0.5); f -= 0.05) grid.style.setProperty('--fit', f.toFixed(2));
 }
-new ResizeObserver(() => [...$('grid').children].forEach(fitPad)).observe($('grid'));
+new ResizeObserver(fitPads).observe($('grid'));
 
 // A pad is live when the radio shows its tag or its frequency.
 function isLive(p) {
