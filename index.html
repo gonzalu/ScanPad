@@ -15,13 +15,34 @@
   h1 { font-size: 18px; letter-spacing: .08em; margin: 0 8px 0 0; }
   button { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; font: inherit; cursor: pointer; }
   button.on { background: #3a2a0a; border-color: var(--lcd); color: var(--lcd); }
+  /* One button shows the link: green connected, amber on its way, red not. */
+  #connect { font-weight: 600; white-space: nowrap; }
+  #connect::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: currentColor; margin-right: 7px; vertical-align: 1px; }
+  #connect[data-s=connected] { background: #12351a; border-color: #5ad16b; color: #5ad16b; }
+  #connect[data-s=busy] { background: #3a2a0a; border-color: var(--lcd); color: var(--lcd); }
+  #connect[data-s=off] { background: #3a1010; border-color: #e0524a; color: #ff7a70; }
+  #controls { display: flex; gap: 8px; flex-wrap: wrap; }
+  header { position: relative; }
+  #moreMenu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 5; display: flex; flex-direction: column; gap: 6px; padding: 8px; min-width: 170px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px #000a; }
+  #moreMenu[hidden] { display: none; }
+  #moreMenu button { text-align: left; }
+  /* A phone: the controls get a row of their own under the title. */
+  @media (max-width: 700px) {
+    #controls { order: 9; width: 100%; gap: 6px; }
+    #controls button { flex: 1 1 auto; min-width: 0; padding: 8px 2px; white-space: nowrap; }
+  }
   .spacer { flex: 1; }
   /* The display strip, laid out like the radio's own screen: where it is on
      top, the channel name big, its tag and frequency along the bottom. Every
      line is one line high, so the strip keeps its height and the pads below
      don't jump while it scans; a name too long for the strip slides sideways. */
   #lcd { background: #000; border: 1px solid var(--line); border-radius: 10px; padding: 9px 14px 10px; color: var(--lcd); display: flex; flex-direction: column; gap: 2px; font-variant-numeric: tabular-nums; }
-  #lcdPath { font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 1.3em; }
+  #lcdTop { display: flex; align-items: center; gap: 8px; height: 17px; }
+  #lcdPath { flex: 1; min-width: 0; font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* Shown when what's on isn't a pad yet: adds it to this bank. */
+  #addPad { flex: none; font: 600 11px/1 system-ui, -apple-system, sans-serif; padding: 2px 9px; border-radius: 999px; background: #3a2a0a; border-color: var(--lcd); color: var(--lcd); }
+  #addPad[hidden] { display: none; }
   #lcdNameBox { overflow: hidden; white-space: nowrap; font-size: 22px; font-weight: 600; line-height: 1.25; }
   #lcdNameBox.slide { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 16px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 16px), transparent); }
   #lcdName { display: inline-block; }
@@ -69,6 +90,8 @@
     header { gap: 6px; }
     header button { padding: 6px 9px; }
     h1 { width: 100%; }
+    #controls { order: 9; width: 100%; gap: 6px; }
+    #controls button { flex: 1 1 auto; white-space: nowrap; }
     #lcdNameBox { font-size: 18px; }
     #banks { display: grid; grid-template-columns: 1fr 1fr; align-self: start; gap: 6px; }
     #banks button { padding: 6px; }
@@ -110,20 +133,25 @@
 <body>
 <header>
   <h1>SCANPAD</h1>
-  <button id="connect">Connect</button>
-  <span id="status" style="color:var(--dim)">Not connected</span>
-  <button id="scan">▶ Scan</button>
-  <button id="lists">Scan lists</button>
-  <button id="audio" title="Play the radio's audio here">🔇 Audio</button>
+  <button id="connect" data-s="off">Connect</button>
+  <div id="controls">
+    <button id="scan">▶ Scan</button>
+    <button id="hold" title="Stay on what the radio is on now">✋ Hold</button>
+    <button id="lists" title="Scan lists">Lists</button>
+    <button id="audio" title="Play the radio's audio here">🔇 Audio</button>
+    <button id="edit">Edit</button>
+  </div>
   <span class="spacer"></span>
-  <button id="edit">Edit</button>
-  <button id="export">Export</button>
-  <button id="import">Import</button>
-  <button id="defaults">Defaults</button>
+  <button id="more" title="More">⋯</button>
+  <div id="moreMenu" hidden>
+    <button id="export">Export pads</button>
+    <button id="import">Import pads</button>
+    <button id="defaults">Default pad sets</button>
+  </div>
   <input id="file" type="file" accept=".json,application/json" hidden>
 </header>
 
-<div id="lcd"><div id="lcdPath">Connect to the SDS150</div><div id="lcdNameBox"><span id="lcdName">—</span></div><div id="lcdBot"><span id="lcdTag"></span><span id="lcdFreq"></span></div></div>
+<div id="lcd"><div id="lcdTop"><span id="lcdPath">Connect to the SDS150</span><button id="addPad" hidden>＋ Pad</button></div><div id="lcdNameBox"><span id="lcdName">—</span></div><div id="lcdBot"><span id="lcdTag"></span><span id="lcdFreq"></span></div></div>
 <div id="banks"></div>
 <div id="padArea"><div id="grid"></div></div>
 
@@ -246,9 +274,7 @@ const speaker = new Speaker();
 const radio = new SDS150({
   onAudio: packet => speaker.play(packet),
   onState(s) {
-    const label = { choosing: 'Choosing…', connecting: 'Connecting…', reconnecting: 'Link dropped, reconnecting…', connected: 'Connected', disconnected: 'Disconnected' }[s];
-    $('status').textContent = label;
-    $('connect').textContent = s === 'connected' || s === 'reconnecting' ? 'Disconnect' : 'Connect';
+    showLink(s);
     clearInterval(pollTimer);
     if (s === 'connected') {
       // Reading the screen every 1.5 s shows what the radio is on and keeps the link busy.
@@ -298,11 +324,22 @@ $('audio').onclick = async () => {
   $('audio').classList.toggle('on', speaker.on);
 };
 
+// The connect button is also the link's status light.
+let link = 'disconnected';
+function showLink(s) {
+  link = s;
+  $('connect').textContent = { choosing: 'Choosing…', connecting: 'Connecting…', reconnecting: 'Reconnecting…', connected: 'Connected' }[s] || 'Connect';
+  $('connect').dataset.s = s === 'connected' ? 'connected' : s === 'disconnected' ? 'off' : 'busy';
+}
+
 $('connect').onclick = async () => {
-  if (radio.connected || $('connect').textContent === 'Disconnect') return radio.disconnect();
+  if (link === 'connected' || link === 'reconnecting') {
+    if (confirm('Disconnect from the SDS150?')) radio.disconnect();
+    return;
+  }
   try { await radio.connect(); }
   catch (e) {
-    $('status').textContent = 'Not connected';
+    showLink('disconnected');
     // Keep the reason on screen (in the display strip) so it can be read off an iPad.
     if (e.name !== 'NotFoundError') showScreen({ path: 'Connect failed', name: e.message || String(e) });
   }
@@ -312,6 +349,40 @@ $('scan').onclick = async () => {
   if (!radio.connected) return toast('Connect to the SDS150 first');
   try { await radio.resumeScan(); } catch (e) { toast(`Send failed: ${e.message || e}`); }
 };
+
+// Stay on whatever the radio is on now, like its Channel key: jump to the
+// channel's number tag, or hold the frequency if it has none.
+$('hold').onclick = async () => {
+  if (!radio.connected) return toast('Connect to the SDS150 first');
+  try {
+    const now = parseScreen(await radio.ask('GST')) || screen;
+    if (now?.tag) await radio.jumpTag(now.tag);
+    else if (now?.mhz) { await radio.tune(now.mhz); liveSteps = mhzToSteps(now.mhz); renderGrid(); }
+    else toast('Nothing to hold yet');
+  } catch (e) { toast(e.message || String(e)); }
+};
+
+// Add what the strip shows to the first empty pad in this bank.
+$('addPad').onclick = () => {
+  const s = screen;
+  if (!s || padFor(s)) return;
+  const pads = state.banks[state.bank], i = pads.findIndex(p => !p);
+  if (i < 0) return toast(`Bank ${state.bank} is full`);
+  const color = COLORS[i % COLORS.length];
+  const named = s.name && parseFloat(s.name) !== parseFloat(s.mhz) ? s.name : '';
+  pads[i] = s.tag ? { kind: 'tag', name: (named || s.tag).slice(0, 24), tag: s.tag, color }
+    : { name: (named || `${+parseFloat(s.mhz).toFixed(4)} MHz`).slice(0, 24), mhz: parseFloat(s.mhz).toFixed(4), color };
+  save();
+  renderGrid();
+  showScreen(describe(s));
+  toast(`Added "${pads[i].name}" to bank ${state.bank}`);
+};
+
+// Export, Import and Defaults live in the ⋯ menu; any tap elsewhere closes it.
+$('more').onclick = () => { $('moreMenu').hidden = !$('moreMenu').hidden; };
+document.addEventListener('click', e => {
+  if (!e.target.closest('#more')) $('moreMenu').hidden = true;
+});
 
 function renderBanks() {
   $('banks').replaceChildren(...BANKS.map(b => {
@@ -329,8 +400,9 @@ function renderBanks() {
 function describe(scr) {
   const pad = padFor(scr);
   const held = !scr.tag && (!scr.name || parseFloat(scr.name) === parseFloat(scr.mhz));
-  if (held) return { path: 'Holding a frequency', name: pad ? pad.name : 'Frequency', mode: pad?.mode, mhz: scr.mhz };
-  return { path: [scr.system, scr.dept].filter(Boolean).join(' › '), name: scr.name || '—', tag: scr.tag, mode: pad?.mode, mhz: scr.mhz };
+  const canAdd = !pad && !!(scr.tag || scr.mhz);
+  if (held) return { path: 'Holding a frequency', name: pad ? pad.name : 'Frequency', mode: pad?.mode, mhz: scr.mhz, canAdd };
+  return { path: [scr.system, scr.dept].filter(Boolean).join(' › '), name: scr.name || '—', tag: scr.tag, mode: pad?.mode, mhz: scr.mhz, canAdd };
 }
 
 // The pad for what the radio is on, by tag or else by frequency: this bank's first.
@@ -341,8 +413,9 @@ function padFor(scr) {
     || (steps !== null && pads.find(p => p.mhz && mhzToSteps(p.mhz) === steps)) || null;
 }
 
-function showScreen({ path = '', name = '—', tag = '', mode = '', mhz = '' } = {}) {
+function showScreen({ path = '', name = '—', tag = '', mode = '', mhz = '', canAdd = false } = {}) {
   $('lcdPath').textContent = path;
+  $('addPad').hidden = !canAdd;
   $('lcdTag').textContent = [tag && `★ ${tag}`, mode].filter(Boolean).join(' · ');
   $('lcdFreq').textContent = mhz ? `${parseFloat(mhz).toFixed(4)} MHz` : '';
   if ($('lcdName').textContent !== name) { $('lcdName').textContent = name; slideName(); }
@@ -714,6 +787,7 @@ document.addEventListener('keydown', e => {
   const i = KEYS.indexOf(e.key.toLowerCase());
   if (i >= 0) { e.preventDefault(); press(i); }
   else if (e.key === ' ') { e.preventDefault(); $('scan').click(); }
+  else if (e.key.toLowerCase() === 'h') $('hold').click();
   else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') stepBank(e.key === 'ArrowLeft' ? -1 : 1);
 });
 

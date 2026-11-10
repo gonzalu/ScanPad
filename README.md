@@ -27,6 +27,8 @@ server: open the page, tap **Connect**, pick your radio.
 - **Scan-list switches.** A pad can turn a favorites list, system or
   department on or off. A **scan-only** pad turns one list on, every other list
   off, and starts scanning, all in one press.
+- **Hold and keep.** Stop the scan on whatever's playing with **✋ Hold**, and
+  make it a pad with one more tap.
 - **Audio.** The SDS150 sends its sound over Bluetooth; ScanPad plays it on the
   device you're holding.
 - **Ready-made pad sets** for nine US cities, plus nationwide and military
@@ -50,23 +52,24 @@ AlphaScan or any other scanner app first.
 1. Turn on the SDS150's Bluetooth.
 2. Open <https://gonzalu.github.io/ScanPad/> in Chrome (or Bluefy on an
    iPhone).
-3. Tap **Connect** and pick **SDS150** from the list.
+3. Tap the red **Connect** button and pick **SDS150** from the list. The
+   button turns green and reads **Connected**; tap it again to disconnect.
 4. Tap a pad. The radio tunes there and holds; the pad glows.
 5. Tap **▶ Scan** to let the radio scan again.
 
 A first visit loads the **Nationwide basics** set: NOAA weather, aviation
-emergency, marine, ham calling channels, the ISS and more. Tap **Defaults** to
-pick a set for your city.
+emergency, marine, ham calling channels, the ISS and more. Tap **⋯** then
+**Default pad sets** to pick a set for your city.
 
 ## How to
 
 ### Load a set for your city
 
-1. Tap **Defaults**.
+1. Tap **⋯**, then **Default pad sets**.
 2. Pick a set from the list.
 3. Confirm. The set replaces all four banks.
 
-Tap **Export** first if you want to keep the pads you have.
+Tap **⋯** then **Export pads** first if you want to keep the pads you have.
 
 The city sets put the main airport on bank A, the other airports on B, police,
 fire and EMS channels on C, and weather, state police, interop, marine and
@@ -91,6 +94,21 @@ rail on D. See [Pad sets](#pad-sets) for the full list.
 now, tap **Use what's on now**.
 
 <p align="center"><img src="docs/screenshots/edit-pad.png" width="260" alt="Editing a pad: name LGA Tower, a tagged channel, frequency 118.700, number tag 2.1.201, and a row of colors"></p>
+
+### Stop on something while scanning, and keep it as a pad
+
+1. Let the radio scan your favorites.
+2. When it stops on something worth staying on, tap **✋ Hold**. The radio
+   stays on that channel, like pressing its Channel key. A channel with a
+   number tag is held by its tag (talkgroups too); one without, by its
+   frequency.
+3. If that channel isn't a pad yet, the display strip shows **＋ Pad**. Tap it
+   to put the channel on the first empty pad of the bank you're on. Rename or
+   recolor it later with **Edit**.
+4. Tap **▶ Scan** to carry on scanning.
+
+**＋ Pad** works while scanning too: it saves whatever the strip shows at that
+moment.
 
 ### Jump to a channel in your favorites by number tag
 
@@ -134,7 +152,7 @@ systems (`1.5`, system 5 in list 1) and departments (`1.2.3`) too.
 
 ### Turn lists, systems and departments on and off
 
-1. Tap **Scan lists**. You see the favorites lists on the radio, each with an
+1. Tap **Lists**. You see the favorites lists on the radio, each with an
    on/off switch.
 2. Tap a list to see its systems, and a system to see its departments.
 3. Flip a switch to change what the radio scans.
@@ -173,19 +191,21 @@ key in the corner.
 | `A` | `S` | `D` | `F` |
 | `Z` | `X` | `C` | `V` |
 
-`←` `→` switch banks. `Space` sends the radio back to scanning.
+`←` `→` switch banks. `Space` sends the radio back to scanning, and `H`
+holds it on what it's on.
 
 ### Move your pads to another device
 
-1. On the first device, tap **Export**. It saves `scanpad.json`.
+1. On the first device, tap **⋯**, then **Export pads**. It saves
+   `scanpad.json`.
 2. Move the file to the other device (AirDrop, email, a cloud drive).
-3. On the other device, tap **Import** and pick the file.
+3. On the other device, tap **⋯**, then **Import pads**, and pick the file.
 
 Pads are kept in the browser on each device; nothing is stored online.
 
 ## Pad sets
 
-**Defaults** lists the sets in [`pads/index.json`](pads/index.json).
+**Default pad sets** (in the **⋯** menu) lists the sets in [`pads/index.json`](pads/index.json).
 
 | Set | What's in it |
 | --- | --- |
@@ -224,8 +244,8 @@ back on.
 
 ## Make your own pads
 
-Build pads in the app with **Edit**, then **Export** to keep them. Or write a
-`scanpad.json` by hand (or ask an AI to) and **Import** it. Feel free to fork
+Build pads in the app with **Edit**, then **Export pads** to keep them. Or
+write a `scanpad.json` by hand (or ask an AI to) and load it with **Import pads**. Feel free to fork
 the project and ship your own sets. The format is four banks of 16 pads each
 (`null` is an empty pad):
 
@@ -254,9 +274,9 @@ the project and ship your own sets. The format is four banks of 16 pads each
 - `color`: any CSS color.
 
 The file can also carry `"names"`, keyed the same way (`{"1": "Police NY",
-"1.5": "Metro-25"}`), to label the Scan lists panel.
+"1.5": "Metro-25"}`), to label the Lists panel.
 
-To add a set to **Defaults**, put its file in `pads/` and list it in
+To add a set to **Default pad sets**, put its file in `pads/` and list it in
 `pads/index.json` with an `id` (the file name without `.json`), a `name` and
 an `about` line.
 
