@@ -29,8 +29,8 @@ server: open the page, tap **Connect**, pick your radio.
   off, and starts scanning, all in one press.
 - **Audio.** The SDS150 sends its sound over Bluetooth; ScanPad plays it on the
   device you're holding.
-- **Ready-made pad sets** for nine US cities, plus a nationwide set, picked
-  from a list.
+- **Ready-made pad sets** for nine US cities, plus nationwide and military
+  air sets, picked from a list.
 - **Your pads stay on your device**, and move to another one with Export and
   Import.
 - Swipe between banks on a phone; play it from the keyboard on a PC.
@@ -191,8 +191,10 @@ Pads are kept in the browser on each device; nothing is stored online.
 | --- | --- |
 | Nationwide basics | NOAA weather WX1–WX7, aviation emergency and air-to-air, marine, CB, FRS/GMRS/MURS, ham calling frequencies, APRS, the ISS, national interop calling channels |
 | New York City, Washington DC, Chicago, Detroit, Miami, Atlanta, Austin, Denver, Los Angeles, San Francisco | Bank A the main airport (tower, ground, clearance, ATIS, approach, departure), B the other airports, C police, fire and EMS channels that are in the clear, D weather, state police, interop, marine and rail |
+| Military air | Bank A UHF Guard, military tower, helicopter, search and rescue and command-post commons, B USAF air-to-air commons, C intra-squad radios (ISR), D search and rescue |
 | New York: N2MAV's radio | The author's own: NYPD and NY State Police, JFK, LaGuardia |
 | NY area airports: N2MAV's radio | Newark, Teterboro, Stewart, Westchester, Republic, MacArthur, Gabreski |
+| Military: N2MAV's radio | The Military air set by the author's number tags |
 
 The city sets tune by frequency, so they work on any SDS150. They only hold
 conventional channels: most big-city police and fire dispatch is on trunked
@@ -201,8 +203,8 @@ talkgroup. Each city file's `notes` says what was left out and why, and its
 `sources` where the frequencies came from. Frequencies change; corrections are
 welcome.
 
-The two N2MAV sets jump by number tag to channels in the author's favorites
-lists (Police NY is list 1, Aviation NYC is list 2), with the frequency as a
+The N2MAV sets jump by number tag to channels in the author's favorites
+lists (Police NY is list 1, Aviation NYC list 2, Military list 3), with the frequency as a
 fallback. On your radio a tag pad tunes its frequency instead, unless you give
 your channels the same tags in Sentinel (or edit the tags in the file; an AI
 can do the renumbering for you). Trunked talkgroups have no frequency to fall
