@@ -183,6 +183,18 @@ audio is on ScanPad asks for the radio's screen four times a second.
   **Bank A–D**.
 - **Keyboard:** the arrow keys.
 
+### See which version you're running
+
+Tap **⋯**, then **About ScanPad**. It shows:
+
+- **This page**: the version your browser loaded (year.month.day).
+- **Newest**: the version on the site now. If yours is older (a cached
+  copy), tap **Reload to get the newest**.
+- **Radio**: the SDS150's firmware, when connected.
+- **Pads**: which pad set or file your pads came from.
+
+A cached older copy also says so by itself a few seconds after it opens.
+
 ### Use it from the keyboard
 
 The first 16 pads are mapped to the left side of the keyboard. Each pad shows
@@ -244,7 +256,7 @@ back on.
 | A tag pad doesn't jump | The radio has no channel with that tag. Check the tag in Sentinel, or add a frequency to the pad so it tunes that instead. |
 | A switch pad stays on **Switching…** for a few seconds | Normal: the radio stops answering for a few seconds after a quick-key change. |
 | No sound | Tap **🔇 Audio** (it needs a tap each visit). Check the device's volume. |
-| A pad set doesn't show up right after an update | GitHub Pages caches for about ten minutes. Reload the page. |
+| A pad set doesn't show up right after an update | GitHub Pages caches for about ten minutes. Tap **⋯**, then **About ScanPad**: it shows the version you have and the newest, with a button to reload when they differ. |
 | "Can't keep the screen on" | That browser doesn't let a page hold the screen awake. On an iPhone, set **Settings › Display & Brightness › Auto-Lock** to a longer time while you listen. |
 
 ## Make your own pads
