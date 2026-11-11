@@ -54,16 +54,16 @@
   /* The pads take whatever room is left on screen, on any device: square when
      the space is tall, up to 1.6:1 when it is wide, and never past its edges. */
   #padArea { flex: 1; min-height: 0; container-type: size; touch-action: pan-y pinch-zoom; }
-  #grid { --g: 10px; --w: calc((100cqw - 3 * var(--g)) / 4); --h: calc((100cqh - 3 * var(--g)) / 4);
+  #grid { --g: 10px; --w: calc((100cqw - 3 * var(--g)) / 4); --h: calc((100cqh - 4 * var(--g)) / 5);
     display: grid; gap: var(--g); justify-content: center;
-    grid-template-columns: repeat(4, min(var(--w), var(--h) * 1.6)); grid-template-rows: repeat(4, min(var(--h), var(--w))); }
+    grid-template-columns: repeat(4, min(var(--w), var(--h) * 1.6)); grid-template-rows: repeat(5, min(var(--h), var(--w))); }
   .pad { position: relative; container-type: size; min-width: 0; min-height: 0; overflow: hidden; border-radius: 12px; border: 2px solid color-mix(in srgb, var(--c) 55%, #000); background: linear-gradient(160deg, color-mix(in srgb, var(--c) 32%, #111), color-mix(in srgb, var(--c) 14%, #0a0a0a)); color: var(--text); display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-start; padding: 10px; text-align: left; transition: transform .06s, box-shadow .15s; touch-action: pan-y pinch-zoom; }
   .pad:active { transform: scale(.96); }
   .pad.empty { --c: #333; opacity: .45; }
   .pad.live { box-shadow: 0 0 0 2px var(--c), 0 0 24px color-mix(in srgb, var(--c) 70%, transparent); background: linear-gradient(160deg, color-mix(in srgb, var(--c) 70%, #111), color-mix(in srgb, var(--c) 35%, #0a0a0a)); }
   /* Pad text scales with the pad (cqmin = 1% of its shorter side), and --fit
      shrinks it further on a bank whose text wouldn't fit (see fitPads). */
-  .pad .name { font-weight: 600; font-size: calc(clamp(11px, 12cqmin, 26px) * var(--fit, 1)); line-height: 1.15; overflow-wrap: break-word; }
+  .pad .name { max-width: 100%; font-weight: 600; font-size: calc(clamp(11px, 12cqmin, 26px) * var(--fit, 1)); line-height: 1.15; overflow-wrap: break-word; }
   .pad .freq { font: 500 calc(clamp(10px, 9.5cqmin, 20px) * var(--fit, 1)) / 1.2 system-ui, -apple-system, sans-serif; font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--text) 75%, transparent); margin-top: 2px; }
   .pad .tag { font: 500 calc(clamp(9px, 8cqmin, 17px) * var(--fit, 1)) system-ui, -apple-system, sans-serif; font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--text) 55%, transparent); margin-top: 1px; }
   /* The label (often the department) sits in the empty top of the pad, two
@@ -226,7 +226,9 @@ import { Speaker } from './speaker.js?v=4';
 const BANKS = ['A', 'B', 'C', 'D'];
 const COLORS = ['#ff5a36', '#ffb02e', '#ffe04a', '#5ad16b', '#2ec4b6', '#3a8dff', '#9b6bff', '#ff5ab4', '#c8c8c8'];
 // Keyboard layout mirrors the 4x4 grid, drum-machine style.
-const KEYS = ['1', '2', '3', '4', 'q', 'w', 'e', 'r', 'a', 's', 'd', 'f', 'z', 'x', 'c', 'v'];
+// Four rows have keyboard keys; the fifth has none.
+const KEYS = ['1', '2', '3', '4', 'q', 'w', 'e', 'r', 'a', 's', 'd', 'f', 'z', 'x', 'c', 'v', '', '', '', ''];
+const padNo = i => KEYS[i] ? KEYS[i].toUpperCase() : String(i + 1);
 const STORE = 'scanpad.v1';
 
 const $ = id => document.getElementById(id);
@@ -244,12 +246,18 @@ let pollTimer = null;
 function load() {
   try {
     const s = JSON.parse(localStorage.getItem(STORE));
-    if (s && s.banks) return s;
+    if (s && s.banks) return fillBanks(s);
   } catch {}
-  return { bank: 'A', banks: Object.fromEntries(BANKS.map(b => [b, Array(16).fill(null)])), fresh: true };
+  return { bank: 'A', banks: Object.fromEntries(BANKS.map(b => [b, Array(KEYS.length).fill(null)])), fresh: true };
+}
+// Banks were 16 pads before the fifth row; pad older files out to 20.
+function fillBanks(s) {
+  for (const b of BANKS) if (Array.isArray(s.banks[b])) while (s.banks[b].length < KEYS.length) s.banks[b].push(null);
+  return s;
 }
 function usePads(s) {
   if (!s.banks || !BANKS.every(b => Array.isArray(s.banks[b]))) throw new Error('not a ScanPad file');
+  fillBanks(s);
   // Names of lists, systems and departments ("1", "1.5", "1.2.3"): the file's
   // fill in what this device hasn't learned yet.
   const names = { ...(s.names || {}), ...(state.names || {}) };
@@ -451,7 +459,7 @@ function slideName() {
 }
 new ResizeObserver(slideName).observe($('lcdNameBox'));
 
-// The 16 pad buttons are made once and updated in place: the radio's screen
+// The 20 pad buttons are made once and updated in place: the radio's screen
 // arrives every 1.5 s, and replacing a button under a finger loses its tap or
 // swipe (iOS keeps sending a touch to the element it started on).
 function renderGrid() {
@@ -748,7 +756,7 @@ function addSwitchPad(qk) {
   if (i < 0) return toast(`Bank ${state.bank} is full; clear a pad first`);
   pads[i] = { kind: 'qk', name: nameOf(qk), qk, color: '#5ad16b' };
   save(); renderGrid();
-  toast(`Added to bank ${state.bank}, pad ${KEYS[i].toUpperCase()}`);
+  toast(`Added to bank ${state.bank}, pad ${padNo(i)}`);
 }
 
 $('lists').onclick = () => { $('qkDlg').showModal(); openLevel(''); };

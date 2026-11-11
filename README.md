@@ -1,7 +1,7 @@
 # ScanPad
 
 A drum-machine style pad for the **Uniden SDS150** scanner. Each pad holds a
-channel; tap it and the radio jumps there and holds. Four banks of 16 pads,
+channel; tap it and the radio jumps there and holds. Four banks of 20 pads,
 one-tap scan-list switches, and the radio's audio played on your phone or PC.
 
 It runs in the browser over Bluetooth. No app to install, no account, no
@@ -184,8 +184,8 @@ audio is on ScanPad asks for the radio's screen four times a second.
 
 ### Use it from the keyboard
 
-The 16 pads are mapped to the left side of the keyboard. Each pad shows its
-key in the corner.
+The first 16 pads are mapped to the left side of the keyboard. Each pad shows
+its key in the corner; the fifth row has no keys.
 
 |   |   |   |   |
 | --- | --- | --- | --- |
@@ -249,8 +249,8 @@ back on.
 
 Build pads in the app with **Edit**, then **Export pads** to keep them. Or
 write a `scanpad.json` by hand (or ask an AI to) and load it with **Import pads**. Feel free to fork
-the project and ship your own sets. The format is four banks of 16 pads each
-(`null` is an empty pad):
+the project and ship your own sets. The format is four banks of 20 pads each
+(`null` is an empty pad; a bank with only 16 leaves the fifth row empty):
 
 ```json
 {
