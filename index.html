@@ -471,8 +471,9 @@ function renderGrid() {
     el.onclick = () => press(i);
     return el;
   }));
-  pads.forEach((p, i) => {
-    const el = $('grid').children[i];
+  // One button per key: a file with more pads than that can't break the grid.
+  [...$('grid').children].forEach((el, i) => {
+    const p = pads[i] || null;
     el.className = 'pad' + (p ? '' : ' empty') + (p && isLive(p) ? ' live' : '');
     if (p) el.style.setProperty('--c', p.color); else el.style.removeProperty('--c');
     el.querySelector('.label').textContent = p?.label || '';
