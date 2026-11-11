@@ -54,6 +54,7 @@ AlphaScan or any other scanner app first.
    iPhone).
 3. Tap the red **Connect** button and pick **SDS150** from the list. The
    button turns green and reads **Connected**; tap it again to disconnect.
+   While connected, the screen stays on.
 4. Tap a pad. The radio tunes there and holds; the pad glows.
 5. Tap **▶ Scan** to let the radio scan again.
 
@@ -244,6 +245,7 @@ back on.
 | A switch pad stays on **Switching…** for a few seconds | Normal: the radio stops answering for a few seconds after a quick-key change. |
 | No sound | Tap **🔇 Audio** (it needs a tap each visit). Check the device's volume. |
 | A pad set doesn't show up right after an update | GitHub Pages caches for about ten minutes. Reload the page. |
+| "Can't keep the screen on" | That browser doesn't let a page hold the screen awake. On an iPhone, set **Settings › Display & Brightness › Auto-Lock** to a longer time while you listen. |
 
 ## Make your own pads
 

@@ -347,7 +347,27 @@ function showLink(s) {
   link = s;
   $('connect').textContent = { choosing: 'Choosing…', connecting: 'Connecting…', reconnecting: 'Reconnecting…', connected: 'Connected' }[s] || 'Connect';
   $('connect').dataset.s = s === 'connected' ? 'connected' : s === 'disconnected' ? 'off' : 'busy';
+  keepAwake();
 }
+
+// Keep the screen on while linked to the radio, so the phone doesn't lock
+// mid-listen. The browser drops the lock whenever the page is hidden; take it
+// again when it comes back.
+let wake = null, wakeWarned = false;
+async function keepAwake() {
+  const want = link === 'connected' || link === 'reconnecting';
+  if (!want) { wake?.release(); wake = null; return; }
+  if (wake || document.visibilityState !== 'visible') return;
+  try {
+    if (!navigator.wakeLock) throw new Error('no Screen Wake Lock here');
+    wake = await navigator.wakeLock.request('screen');
+    wake.addEventListener('release', () => { wake = null; });
+  } catch (e) {
+    if (!wakeWarned) toast(`Can't keep the screen on (${e.message}). Set Auto-Lock in iPhone Settings › Display.`);
+    wakeWarned = true;
+  }
+}
+document.addEventListener('visibilitychange', keepAwake);
 
 $('connect').onclick = async () => {
   if (link === 'connected' || link === 'reconnecting') {
