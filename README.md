@@ -81,7 +81,9 @@ rail on D. See [Pad sets](#pad-sets) for the full list.
 
 1. Tap **Edit**. The pads get a dashed outline.
 2. Tap the pad to change, or an empty one (**+ add**).
-3. Give it a name and choose what it tunes to:
+3. Give it a name, and if you like a **Label**: a small line across the top
+   of the pad, handy for the department (`Sheriff`, `NYPD`) when several
+   channels share a name like "Citywide". Choose what it tunes to:
    - **A frequency**: type it in MHz, e.g. `162.55`.
    - **A tagged channel**: type its number tag, e.g. `2.1.201`. See the next
      how-to.
@@ -103,7 +105,8 @@ now, tap **Use what's on now**.
    number tag is held by its tag (talkgroups too); one without, by its
    frequency.
 3. If that channel isn't a pad yet, the display strip shows **＋ Pad**. Tap it
-   to put the channel on the first empty pad of the bank you're on. Rename or
+   to put the channel on the first empty pad of the bank you're on, named as
+   the radio names it, with its department as the label. Rename, relabel or
    recolor it later with **Edit**.
 4. Tap **▶ Scan** to carry on scanning.
 
@@ -255,6 +258,7 @@ the project and ship your own sets. The format is four banks of 16 pads each
   "banks": {
     "A": [
       { "name": "NOAA WX1", "mhz": "162.5500", "mode": "NFM", "color": "#5ad16b" },
+      { "kind": "tag", "name": "Citywide", "label": "Sheriff", "tag": "1.5.2", "color": "#d9822b" },
       { "kind": "tag", "name": "LGA Tower", "tag": "2.1.201", "mhz": "118.7000", "mode": "AM", "color": "#ff5a36" },
       { "kind": "qk", "name": "Aviation only", "qk": "2", "only": true, "color": "#5ad16b" },
       null
@@ -264,6 +268,8 @@ the project and ship your own sets. The format is four banks of 16 pads each
 }
 ```
 
+- `name`: up to 40 letters.
+- `label`: optional; a small line across the top of the pad (also up to 40).
 - `mhz`: frequency in MHz. Required unless the pad has a tag.
 - `kind: "tag"` with `tag`: jump to the channel with this Sentinel number tag
   (favorites list . system . channel).

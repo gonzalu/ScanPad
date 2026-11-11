@@ -66,6 +66,12 @@
   .pad .name { font-weight: 600; font-size: calc(clamp(11px, 12cqmin, 26px) * var(--fit, 1)); line-height: 1.15; overflow-wrap: break-word; }
   .pad .freq { font: 500 calc(clamp(10px, 9.5cqmin, 20px) * var(--fit, 1)) / 1.2 system-ui, -apple-system, sans-serif; font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--text) 75%, transparent); margin-top: 2px; }
   .pad .tag { font: 500 calc(clamp(9px, 8cqmin, 17px) * var(--fit, 1)) system-ui, -apple-system, sans-serif; font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--text) 55%, transparent); margin-top: 1px; }
+  /* The label (often the department) sits in the empty top of the pad, two
+     lines at most, clear of the key letter. */
+  .pad .label { position: absolute; top: 7px; left: var(--pl, 10px); right: 7px; max-height: 2.3em; overflow: hidden; overflow-wrap: anywhere;
+    font: 600 clamp(8px, 9.75cqmin, 18px) / 1.15 system-ui, -apple-system, sans-serif; letter-spacing: .02em; text-transform: uppercase; color: color-mix(in srgb, var(--text) 60%, transparent); }
+  .pad .label::before { content: ""; float: right; width: 12cqmin; height: 1em; }
+  .pad .label:empty { display: none; }
   .pad .key { position: absolute; top: 6%; right: 8%; font: 500 clamp(9px, 7cqmin, 15px) system-ui, -apple-system, sans-serif; color: var(--dim); }
   body.editing .pad { outline: 1px dashed var(--dim); outline-offset: -6px; }
   dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 12px; padding: 16px; width: min(360px, calc(100vw - 32px)); }
@@ -97,7 +103,8 @@
     #banks button { padding: 6px; }
     #padArea { grid-column: 2; grid-row: 1 / span 3; }
     #grid { --g: 8px; }
-    .pad { padding: 6px 8px; }
+    .pad { padding: 6px 8px; --pl: 8px; }
+    .pad .label { top: 5px; }
   }
   /* Big screens (1080p and up): roomier controls. */
   @media (min-width: 1200px) and (min-height: 900px) {
@@ -158,7 +165,9 @@
 <dialog id="dlg">
   <form method="dialog">
     <label>Name</label>
-    <input type="text" id="fName" maxlength="24" placeholder="e.g. NYPD Citywide 3">
+    <input type="text" id="fName" maxlength="40" placeholder="e.g. Citywide 3">
+    <label>Label (small, across the top)</label>
+    <input type="text" id="fLabel" maxlength="40" placeholder="e.g. NYPD">
     <label>Pad tunes to</label>
     <div class="seg">
       <button type="button" id="kindFreq">A frequency</button>
@@ -370,8 +379,9 @@ $('addPad').onclick = () => {
   if (i < 0) return toast(`Bank ${state.bank} is full`);
   const color = COLORS[i % COLORS.length];
   const named = s.name && parseFloat(s.name) !== parseFloat(s.mhz) ? s.name : '';
-  pads[i] = s.tag ? { kind: 'tag', name: (named || s.tag).slice(0, 24), tag: s.tag, color }
-    : { name: (named || `${+parseFloat(s.mhz).toFixed(4)} MHz`).slice(0, 24), mhz: parseFloat(s.mhz).toFixed(4), color };
+  pads[i] = s.tag ? { kind: 'tag', name: (named || s.tag).slice(0, 40), tag: s.tag, color }
+    : { name: (named || `${+parseFloat(s.mhz).toFixed(4)} MHz`).slice(0, 40), mhz: parseFloat(s.mhz).toFixed(4), color };
+  if (s.dept) pads[i].label = s.dept.slice(0, 40);
   save();
   renderGrid();
   showScreen(describe(s));
@@ -448,7 +458,7 @@ function renderGrid() {
   const pads = state.banks[state.bank];
   if (!$('grid').children.length) $('grid').append(...KEYS.map((k, i) => {
     const el = document.createElement('button');
-    el.innerHTML = `<span class="key"></span><span class="name"></span><span class="freq"></span><span class="tag"></span>`;
+    el.innerHTML = `<span class="key"></span><span class="label"></span><span class="name"></span><span class="freq"></span><span class="tag"></span>`;
     el.querySelector('.key').textContent = k.toUpperCase();
     el.onclick = () => press(i);
     return el;
@@ -457,6 +467,7 @@ function renderGrid() {
     const el = $('grid').children[i];
     el.className = 'pad' + (p ? '' : ' empty') + (p && isLive(p) ? ' live' : '');
     if (p) el.style.setProperty('--c', p.color); else el.style.removeProperty('--c');
+    el.querySelector('.label').textContent = p?.label || '';
     el.querySelector('.name').textContent = p ? p.name : (editing ? '+ add' : '');
     if (p && p.kind === 'qk' && p.only) {
       el.querySelector('.freq').textContent = flipping.has(p.qk) ? 'Switching…' : isLive(p) ? 'SCANNING' : 'Scan only this';
@@ -480,8 +491,12 @@ function fitPads() {
   const key = pads.map(el => el.textContent).join('|') + `|${grid.clientWidth}x${grid.clientHeight}`;
   if (grid.fitKey === key) return;  // the screen is read up to 4 times a second
   grid.fitKey = key;
-  const over = el => el.getBoundingClientRect().top + el.clientTop + parseFloat(getComputedStyle(el).paddingTop)
-    - el.querySelector('.name').getBoundingClientRect().top;
+  const over = el => {
+    const label = el.querySelector('.label');
+    const top = label.textContent ? label.getBoundingClientRect().bottom + 2
+      : el.getBoundingClientRect().top + el.clientTop + parseFloat(getComputedStyle(el).paddingTop);
+    return top - el.querySelector('.name').getBoundingClientRect().top;
+  };
   grid.style.removeProperty('--fit');
   for (let f = 0.95; f > 0.55 && pads.some(el => over(el) > 0.5); f -= 0.05) grid.style.setProperty('--fit', f.toFixed(2));
 }
@@ -526,6 +541,7 @@ function openEditor(i) {
   editIndex = i;
   const p = state.banks[state.bank][i];
   $('fName').value = p ? p.name : '';
+  $('fLabel').value = p?.label || '';
   $('fMhz').value = p && p.mhz ? fmtMhz(p.mhz) : '';
   $('fTag').value = p && p.kind === 'tag' ? p.tag : '';
   $('fQk').value = p && p.kind === 'qk' ? p.qk : '';
@@ -558,7 +574,8 @@ $('useNow').onclick = () => {
   if (!screen) return toast('Still reading the radio; try again in a second');
   if (!screen.tag) return toast(`"${screen.name || 'This channel'}" has no number tag. Give it one in Sentinel.`);
   $('fTag').value = screen.tag;
-  if (!$('fName').value.trim()) $('fName').value = screen.name.slice(0, 24);
+  if (!$('fName').value.trim()) $('fName').value = screen.name.slice(0, 40);
+  if (!$('fLabel').value.trim()) $('fLabel').value = (screen.dept || '').slice(0, 40);
 };
 
 function renderSwatches() {
@@ -601,6 +618,10 @@ $('dlg').querySelector('form').addEventListener('submit', e => {
     } else {
       pads[editIndex] = { name: $('fName').value.trim() || fmtMhz(mhz), mhz, mode, color: pickedColor };
     }
+  }
+  const label = $('fLabel').value.trim();
+  if (v === 'save' && pads[editIndex]) {
+    if (label) pads[editIndex].label = label; else delete pads[editIndex].label;
   }
   $('dlg').close();
   save();
