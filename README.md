@@ -9,6 +9,13 @@ server: open the page, tap **Connect**, pick your radio.
 
 **Open it: <https://gonzalu.github.io/ScanPad/>**
 
+**Watch it work:** a five-minute walkthrough, ending with a real SDS150 and a
+real iPhone: <https://www.youtube.com/watch?v=9H9LK626PJc>
+
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=9H9LK626PJc"><img src="https://img.youtube.com/vi/9H9LK626PJc/maxresdefault.jpg" width="560" alt="ScanPad walkthrough on YouTube: one tap on the phone, and the SDS150 is there"></a>
+</p>
+
 <p align="center">
   <img src="docs/screenshots/phone-police.png" width="270" alt="ScanPad on a phone: a bank of NYPD and NY State Police pads, with NYPD Citywide 3 on the air">
   &nbsp;
