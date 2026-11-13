@@ -248,7 +248,7 @@ import { Speaker } from './speaker.js?v=4';
 // The page's version: year.month.day, plus .2, .3 for a second or third
 // change that day. Bump it with every change, so About can tell a cached copy
 // from the newest one.
-const VERSION = '2026.11.11.2';
+const VERSION = '2026.11.13';
 
 const BANKS = ['A', 'B', 'C', 'D'];
 const COLORS = ['#ff5a36', '#ffb02e', '#ffe04a', '#5ad16b', '#2ec4b6', '#3a8dff', '#9b6bff', '#ff5ab4', '#c8c8c8'];
@@ -851,13 +851,22 @@ $('edit').onclick = () => {
   renderGrid();
 };
 
-$('export').onclick = () => {
-  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+// On iPhone a download link does nothing in Bluefy, so hand the file to the
+// share sheet there (Save to Files, AirDrop, Mail). Elsewhere, download it.
+$('export').onclick = async () => {
+  const file = new File([JSON.stringify(state, null, 2)], 'scanpad.json', { type: 'application/json' });
+  // Desktop Chrome can share files too, but a computer user expects a download.
+  if (matchMedia('(pointer: coarse)').matches && navigator.canShare?.({ files: [file] })) {
+    try { await navigator.share({ files: [file] }); }
+    catch (e) { if (e.name !== 'AbortError') toast(`Export failed: ${e.message}`); }
+    return;
+  }
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'scanpad.json';
+  a.href = URL.createObjectURL(file);
+  a.download = file.name;
   a.click();
-  URL.revokeObjectURL(a.href);
+  // Revoking right away can cancel the download before it starts.
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
 };
 $('import').onclick = () => $('file').click();
 $('file').onchange = async () => {
