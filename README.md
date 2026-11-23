@@ -44,6 +44,8 @@ real iPhone: <https://www.youtube.com/watch?v=9H9LK626PJc>
   air sets, picked from a list.
 - **Your pads stay on your device**, and move to another one with Export and
   Import.
+- **Follow the radio.** When the scan stops on a channel whose pad is in
+  another bank, ScanPad shows that bank.
 - Swipe between banks on a phone; play it from the keyboard on a PC.
 
 ## Where it runs
@@ -173,7 +175,9 @@ systems (`1.5`, system 5 in list 1) and departments (`1.2.3`) too.
 5. **✎** gives it a name.
 
 These are the radio's quick keys, so only the ones you assigned in Sentinel
-appear. The radio can't send names over Bluetooth; ScanPad picks up list and
+appear. A list written from Sentinel with **Monitor** off reads the same as
+an unassigned key, so ScanPad also shows any list you've named, and a switch
+pad still works for it. The radio can't send names over Bluetooth; ScanPad picks up list and
 system names from its screen as you scan, and you can type the rest.
 
 ### Listen on your phone or PC
@@ -200,6 +204,21 @@ Icons on the radio's screen don't come through, only the text.
 - **Phone or tablet:** swipe left or right across the pads, or tap
   **Bank A–D**.
 - **Keyboard:** the arrow keys.
+
+### Let the pads follow the scan
+
+While the radio scans, ScanPad switches to the bank of the pad for whatever
+channel the radio stops on, so the glowing pad is always in view. It stays on
+that bank when the scan moves on. It won't change banks:
+
+- within 10 seconds of a tap or key press, so a bank never changes under your
+  finger;
+- after you've put the radio on a channel with a pad or **✋ Hold**, until you
+  tap **▶ Scan**;
+- in **Edit**, or while a window like **Lists** is open.
+
+Turn it off or on with **⋯ → Follow the radio**. Your device remembers the
+choice.
 
 ### See which version you're running
 
@@ -260,7 +279,8 @@ welcome.
 
 The N2MAV sets jump by number tag to channels in the author's favorites
 lists (Police NY is list 1, Aviation NYC list 2, Military list 3, Fire/EMS NY list 4), with the frequency as a
-fallback. On your radio a tag pad tunes its frequency instead, unless you give
+fallback. The bottom row of bank A in each one switches those four lists on
+and off, and each list's banks end with an "only" pad. On your radio a tag pad tunes its frequency instead, unless you give
 your channels the same tags in Sentinel (or edit the tags in the file; an AI
 can do the renumbering for you). Trunked talkgroups have no frequency to fall
 back on.
@@ -274,6 +294,8 @@ back on.
 | "Link dropped, reconnecting…" | The SDS150 drops a Bluetooth link by itself now and then. ScanPad reconnects on its own, retrying for about three minutes. |
 | A tag pad doesn't jump | The radio has no channel with that tag. Check the tag in Sentinel, or add a frequency to the pad so it tunes that instead. |
 | A switch pad stays on **Switching…** for a few seconds | Normal: the radio stops answering for a few seconds after a quick-key change. |
+| A list is still off after writing it from Sentinel with **Monitor** on | The radio keeps its own on/off state for each list across a write. Flip it with its switch pad or in **Lists**. |
+| The bank changes by itself | That's **Follow the radio** showing the pad the scan stopped on. Turn it off in the **⋯** menu. |
 | No sound | Tap **🔇 Audio** (it needs a tap each visit). Check the device's volume. |
 | A pad set doesn't show up right after an update | GitHub Pages caches for about ten minutes. Tap **⋯**, then **About ScanPad**: it shows the version you have and the newest, with a button to reload when they differ. |
 | "Can't keep the screen on" | That browser doesn't let a page hold the screen awake. On an iPhone, set **Settings › Display & Brightness › Auto-Lock** to a longer time while you listen. |
@@ -335,7 +357,9 @@ wrapped in a small binary "PT" frame; see the header of `sds150.js`.
 | Display strip | `GST` |
 
 The quick-key commands each answer one line of 100 slots (0 = not assigned,
-1 = off, 2 = on), and setting one sends all 100 back. The radio stops
+1 = off, 2 = on), and setting one sends all 100 back. A list Sentinel wrote
+with Monitor off also reads 0, so ScanPad sends a switch for a 0 slot anyway
+and lets the radio refuse it if the key really is missing. The radio stops
 answering for a few seconds after a switch.
 
 Over Bluetooth the SDS150 delivers only the **last line** of a multi-line
