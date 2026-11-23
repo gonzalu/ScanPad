@@ -40,7 +40,7 @@ real iPhone: <https://www.youtube.com/watch?v=9H9LK626PJc>
   device you're holding.
 - **The radio's whole screen**, battery and all, when the radio is out of
   sight. Save it as a picture.
-- **Ready-made pad sets** for nine US cities, plus nationwide and military
+- **Ready-made pad sets** for ten US cities, plus nationwide and military
   air sets, picked from a list.
 - **Your pads stay on your device**, and move to another one with Export and
   Import.
