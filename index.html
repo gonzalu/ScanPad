@@ -165,6 +165,7 @@
   <button id="more" title="More">⋯</button>
   <div id="moreMenu" hidden>
     <button id="screenBtn">Radio screen</button>
+    <button id="followBtn" title="When the radio stops on a channel that has a pad in another bank, show that bank">Follow the radio: On</button>
     <button id="export">Export pads</button>
     <button id="import">Import pads</button>
     <button id="defaults">Default pad sets</button>
@@ -259,7 +260,7 @@ import { Speaker } from './speaker.js?v=4';
 // The page's version: year.month.day, plus .2, .3 for a second or third
 // change that day. Bump it with every change, so About can tell a cached copy
 // from the newest one.
-const VERSION = '2026.11.23.2';
+const VERSION = '2026.11.23.3';
 
 const BANKS = ['A', 'B', 'C', 'D'];
 const COLORS = ['#ff5a36', '#ffb02e', '#ffe04a', '#5ad16b', '#2ec4b6', '#3a8dff', '#9b6bff', '#ff5ab4', '#c8c8c8'];
@@ -366,9 +367,38 @@ const radio = new SDS150({
     learnNames(scr);
     liveSteps = scr.mhz ? mhzToSteps(scr.mhz) : null;
     showScreen(describe(scr));
+    followRadio(scr);
     renderGrid();
   },
 });
+
+// Follow the radio: when it stops on a channel whose pad is in another bank,
+// show that bank. Only while it's scanning (not on a channel a pad or Hold put
+// it on), never in the edit mode or a dialog, and not within 10 s of a touch,
+// so a bank never changes under a finger. It stays on that bank afterwards.
+const FOLLOW = 'scanpad.follow';
+let follow = (() => { try { return localStorage.getItem(FOLLOW) !== 'off'; } catch { return true; } })();
+let heldByUs = false;   // a pad or Hold put the radio on a channel; Scan clears it
+let touchedAt = 0;
+for (const ev of ['pointerdown', 'keydown', 'touchstart']) addEventListener(ev, () => { touchedAt = Date.now(); }, { capture: true, passive: true });
+function showFollow() { $('followBtn').textContent = `Follow the radio: ${follow ? 'On' : 'Off'}`; }
+$('followBtn').onclick = () => {
+  follow = !follow;
+  try { localStorage.setItem(FOLLOW, follow ? 'on' : 'off'); } catch {}
+  showFollow();
+};
+showFollow();
+function followRadio(scr) {
+  // A full tag only shows once the radio has stopped on a channel; while it
+  // scans the screen reads like "Tag:01.05.---", which never matches a pad.
+  if (!follow || heldByUs || editing || !scr.tag || Date.now() - touchedAt < 10000) return;
+  if (document.querySelector('dialog[open]')) return;
+  if (state.banks[state.bank].some(p => p && p.kind === 'tag' && p.tag === scr.tag)) return;
+  const bank = BANKS.find(b => state.banks[b].some(p => p && p.kind === 'tag' && p.tag === scr.tag));
+  if (!bank) return;
+  state.bank = bank;
+  save(); renderBanks();
+}
 
 // For poking at the radio from the browser console: scanpad.radio.ask('MDL').
 window.scanpad = { radio, speaker, screen: () => gst?.line };
@@ -427,7 +457,7 @@ $('connect').onclick = async () => {
 
 $('scan').onclick = async () => {
   if (!radio.connected) return toast('Connect to the SDS150 first');
-  try { await radio.resumeScan(); } catch (e) { toast(`Send failed: ${e.message || e}`); }
+  try { await radio.resumeScan(); heldByUs = false; } catch (e) { toast(`Send failed: ${e.message || e}`); }
 };
 
 // Stay on whatever the radio is on now, like its Channel key: jump to the
@@ -436,6 +466,7 @@ $('hold').onclick = async () => {
   if (!radio.connected) return toast('Connect to the SDS150 first');
   try {
     const now = parseScreen(await radio.ask('GST')) || screen;
+    heldByUs = true;
     if (now?.tag) await radio.jumpTag(now.tag);
     else if (now?.mhz) { await radio.tune(now.mhz); liveSteps = mhzToSteps(now.mhz); renderGrid(); }
     else toast('Nothing to hold yet');
@@ -628,8 +659,9 @@ async function press(i) {
   if (editing || !p) return openEditor(i);
   if (!radio.connected) return toast('Connect to the SDS150 first');
   try {
-    if (p.kind === 'qk' && p.only) return await scanOnly(p.qk);
+    if (p.kind === 'qk' && p.only) { await scanOnly(p.qk); heldByUs = false; return; }
     if (p.kind === 'qk') return await flipSwitch(p.qk);
+    heldByUs = true;
     if (p.kind === 'tag') {
       // Someone else's radio won't have these tags; a tag pad that knows its
       // frequency still works there, it just tunes instead of jumping.
