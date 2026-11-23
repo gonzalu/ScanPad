@@ -144,7 +144,7 @@
   dialog label.check { display: flex; gap: 8px; align-items: flex-start; color: var(--text); font-size: 14px; }
   #screenDlg { width: min(460px, calc(100vw - 24px)); padding: 12px; }
   #screenHead { display: flex; align-items: center; gap: 8px; }
-  #screenCanvas { display: block; width: 100%; margin-top: 10px; border-radius: 6px; background: #000; }
+  #screenCanvas { display: block; width: 100%; margin-top: 10px; border-radius: 6px; background: #02040f; }
   #screenAge { color: var(--dim); font-size: 12px; margin-top: 6px; }
   #lcd { cursor: pointer; }
   #toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: #3a1010; border: 1px solid #a33; padding: 8px 14px; border-radius: 8px; display: none; }
@@ -904,7 +904,12 @@ function screenRows(line) {
   return rows;
 }
 
-const SCR = { cols: 30, cw: 12, small: 22, big: 28, pad: 8 };
+const SCR = { cols: 30, cw: 12, small: 22, big: 28, pad: 8, bg: '#02040f' };
+// One colour per screen row, top to bottom, measured from a photo of N2MAV's
+// SDS150: blue status rows, then red, orange, yellow-green and pink, like a
+// rainbow down the screen. Reversed text gets the row colour behind dark text.
+const ROW_COLORS = ['#8fdcff', '#8fdcff', '#8fdcff', '#8fdcff', '#ff6a3d', '#ff6a3d', '#ffa640', '#ffa640',
+  '#c8f04a', '#b4e650', '#c8f04a', '#ff9aa2', '#ff9aa2', '#ff9aa2', '#ff9aa2', '#8fdcff', '#8fdcff'];
 function drawScreen() {
   const c = $('screenCanvas');
   const rows = gst ? screenRows(gst.line) : [];
@@ -914,7 +919,7 @@ function drawScreen() {
   c.width = w * dpr; c.height = h * dpr;
   const g = c.getContext('2d');
   g.scale(dpr, dpr);
-  g.fillStyle = '#000'; g.fillRect(0, 0, w, h);
+  g.fillStyle = SCR.bg; g.fillRect(0, 0, w, h);
   g.textBaseline = 'middle';
   if (!rows.length) {
     g.fillStyle = '#8a8a94'; g.font = '16px system-ui, sans-serif'; g.textAlign = 'center';
@@ -922,7 +927,8 @@ function drawScreen() {
     g.textAlign = 'left';
   }
   let y = SCR.pad;
-  for (const r of rows) {
+  for (const [k, r] of rows.entries()) {
+    const color = ROW_COLORS[Math.min(k, ROW_COLORS.length - 1)];
     const lh = r.big ? SCR.big : SCR.small;
     // Big rows hold 24 characters across the same width as 30 small ones.
     const cw = r.big ? SCR.cw * 1.25 : SCR.cw;
@@ -931,8 +937,8 @@ function drawScreen() {
     for (let i = 0; i < n; i++) {
       const x = SCR.pad + i * cw;
       const rev = r.marks[i] === '*';
-      if (rev) { g.fillStyle = '#fff'; g.fillRect(x, y, cw + 0.5, lh); }
-      g.fillStyle = rev ? '#000' : '#fff';
+      if (rev) { g.fillStyle = color; g.fillRect(x, y + 1, cw + 0.5, lh - 2); }
+      g.fillStyle = rev ? '#003c78' : color;
       if (r.text[i] !== ' ') g.fillText(r.text[i], x, y + lh / 2 + 1);
       if (r.marks[i] === '_') g.fillRect(x, y + lh - 2, cw, 2);
     }
