@@ -275,7 +275,11 @@ export class SDS150 {
         const type = f[r], n = (f[r + 1] << 8) | f[r + 2];
         if (r + 3 + n > total - 2) break;
         const d = f.subarray(r + 3, r + 3 + n);
-        if (type === 0xc0) this._text(new TextDecoder().decode(d[0] === 0x81 ? d.subarray(1) : d));
+        // Every text block leads with a header byte: 0x81 on the first, other
+        // values on the rest of a long reply. Drop it whatever it is (as
+        // AlphaScan does), or it lands in the screen text as a stray space.
+        // One byte per character, so icons keep their column on the screen.
+        if (type === 0xc0) this._text(String.fromCharCode(...(d[0] >= 0x20 && d[0] < 0x7f ? d : d.subarray(1))));
         else if (type === 0xa1) this._audio(d);
         r += 3 + n;
       }
