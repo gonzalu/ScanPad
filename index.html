@@ -142,6 +142,11 @@
   @keyframes swl { from { transform: translateX(24px); opacity: .4; } }
   @keyframes swr { from { transform: translateX(-24px); opacity: .4; } }
   dialog label.check { display: flex; gap: 8px; align-items: flex-start; color: var(--text); font-size: 14px; }
+  #screenDlg { width: min(460px, calc(100vw - 24px)); padding: 12px; }
+  #screenHead { display: flex; align-items: center; gap: 8px; }
+  #screenCanvas { display: block; width: 100%; margin-top: 10px; border-radius: 6px; background: #000; }
+  #screenAge { color: var(--dim); font-size: 12px; margin-top: 6px; }
+  #lcd { cursor: pointer; }
   #toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: #3a1010; border: 1px solid #a33; padding: 8px 14px; border-radius: 8px; display: none; }
 </style>
 </head>
@@ -159,6 +164,7 @@
   <span class="spacer"></span>
   <button id="more" title="More">⋯</button>
   <div id="moreMenu" hidden>
+    <button id="screenBtn">Radio screen</button>
     <button id="export">Export pads</button>
     <button id="import">Import pads</button>
     <button id="defaults">Default pad sets</button>
@@ -224,6 +230,11 @@
   <div id="tplRows"><div class="hint">Loading the list…</div></div>
   <div class="hint">A set replaces all four banks. Export first if you want to keep yours.</div>
 </dialog>
+<dialog id="screenDlg">
+  <div id="screenHead"><b>Radio screen</b><span class="spacer"></span><button id="screenSave">Save picture</button><button id="screenClose">Close</button></div>
+  <canvas id="screenCanvas"></canvas>
+  <div id="screenAge"></div>
+</dialog>
 <dialog id="aboutDlg">
   <div style="display:flex;align-items:center;gap:8px"><b>ScanPad</b><span class="spacer"></span><button id="aboutClose">Close</button></div>
   <dl>
@@ -248,7 +259,7 @@ import { Speaker } from './speaker.js?v=4';
 // The page's version: year.month.day, plus .2, .3 for a second or third
 // change that day. Bump it with every change, so About can tell a cached copy
 // from the newest one.
-const VERSION = '2026.11.13';
+const VERSION = '2026.11.22';
 
 const BANKS = ['A', 'B', 'C', 'D'];
 const COLORS = ['#ff5a36', '#ffb02e', '#ffe04a', '#5ad16b', '#2ec4b6', '#3a8dff', '#9b6bff', '#ff5ab4', '#c8c8c8'];
@@ -268,6 +279,7 @@ let editKind = 'freq';
 let screen = null;     // what the radio last showed: { mhz, name, tag }
 let liveSteps = null;
 let pollTimer = null;
+let gst = null;        // the radio's last whole-screen reply, and when it came
 
 // Saved pads, or empty banks until the default set (named in pads/index.json) arrives.
 function load() {
@@ -329,7 +341,9 @@ const radio = new SDS150({
       // Held while a quick-key switch is in flight: the two replies garble each other.
       let polledAt = 0;
       const poll = () => {
-        if (radio.busy || (!speaker.on && Date.now() - polledAt < 1400)) return;
+        // The full radio screen, when it's open, refreshes every half second.
+        const gap = speaker.on ? 0 : $('screenDlg').open ? 450 : 1400;
+        if (radio.busy || Date.now() - polledAt < gap) return;
         polledAt = Date.now();
         radio.send('GST').catch(() => {});
       };
@@ -343,6 +357,7 @@ const radio = new SDS150({
     }
   },
   onLine(line) {
+    if (/^\s*GST,/.test(line)) { gst = { line, at: Date.now() }; if ($('screenDlg').open) drawScreen(); }
     if (/^QSH,(NG|ERR)/.test(line)) toast(`Radio rejected that frequency (${line})`);
     if (/^JPM,(NG|ERR)/.test(line)) toast(`Radio wouldn't go back to scan (${line})`);
     const scr = parseScreen(line);
@@ -853,12 +868,14 @@ $('edit').onclick = () => {
 
 // On iPhone a download link does nothing in Bluefy, so hand the file to the
 // share sheet there (Save to Files, AirDrop, Mail). Elsewhere, download it.
-$('export').onclick = async () => {
-  const file = new File([JSON.stringify(state, null, 2)], 'scanpad.json', { type: 'application/json' });
+$('export').onclick = () => saveFile(new File([JSON.stringify(state, null, 2)], 'scanpad.json', { type: 'application/json' }));
+
+// Phones get the share sheet (Save to Files, Photos, AirDrop); computers get a download.
+async function saveFile(file) {
   // Desktop Chrome can share files too, but a computer user expects a download.
   if (matchMedia('(pointer: coarse)').matches && navigator.canShare?.({ files: [file] })) {
     try { await navigator.share({ files: [file] }); }
-    catch (e) { if (e.name !== 'AbortError') toast(`Export failed: ${e.message}`); }
+    catch (e) { if (e.name !== 'AbortError') toast(`Saving failed: ${e.message}`); }
     return;
   }
   const a = document.createElement('a');
@@ -867,6 +884,80 @@ $('export').onclick = async () => {
   a.click();
   // Revoking right away can cancel the download before it starts.
   setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
+
+// ---- The radio's whole screen ----
+// GST answers with every row of the display: GST,<form>,<row 1>,<marks 1>,<row 2>,<marks 2>,...
+// <form> has one digit per row, 1 for the big rows (system, department, channel).
+// A * in the marks shows that character reversed, like the highlighted channel
+// row and the soft keys. Icons come through as spaces.
+function screenRows(line) {
+  const f = line.trimStart().split(',');
+  const form = f[1] || '';
+  const n = form.length >= 10 ? form.length : 17;
+  const rows = [];
+  for (let i = 0; i < n; i++) {
+    const text = f[2 + i * 2];
+    if (text === undefined) break;
+    rows.push({ text, marks: f[3 + i * 2] || '', big: form[i] === '1' });
+  }
+  return rows;
+}
+
+const SCR = { cols: 30, cw: 12, small: 22, big: 28, pad: 8 };
+function drawScreen() {
+  const c = $('screenCanvas');
+  const rows = gst ? screenRows(gst.line) : [];
+  const dpr = Math.max(2, devicePixelRatio || 1);
+  const w = SCR.cols * SCR.cw + SCR.pad * 2;
+  const h = rows.reduce((t, r) => t + (r.big ? SCR.big : SCR.small), 0) + SCR.pad * 2 || 120;
+  c.width = w * dpr; c.height = h * dpr;
+  const g = c.getContext('2d');
+  g.scale(dpr, dpr);
+  g.fillStyle = '#000'; g.fillRect(0, 0, w, h);
+  g.textBaseline = 'middle';
+  if (!rows.length) {
+    g.fillStyle = '#8a8a94'; g.font = '16px system-ui, sans-serif'; g.textAlign = 'center';
+    g.fillText(radio.connected ? 'Waiting for the radio…' : 'Connect to the SDS150', w / 2, h / 2);
+    g.textAlign = 'left';
+  }
+  let y = SCR.pad;
+  for (const r of rows) {
+    const lh = r.big ? SCR.big : SCR.small;
+    // Big rows hold 24 characters across the same width as 30 small ones.
+    const cw = r.big ? SCR.cw * 1.25 : SCR.cw;
+    g.font = `${r.big ? 'bold 24px' : '19px'} ui-monospace, Menlo, Consolas, monospace`;
+    const n = Math.min(r.text.length, Math.floor(SCR.cols * SCR.cw / cw));
+    for (let i = 0; i < n; i++) {
+      const x = SCR.pad + i * cw;
+      const rev = r.marks[i] === '*';
+      if (rev) { g.fillStyle = '#fff'; g.fillRect(x, y, cw + 0.5, lh); }
+      g.fillStyle = rev ? '#000' : '#fff';
+      if (r.text[i] !== ' ') g.fillText(r.text[i], x, y + lh / 2 + 1);
+      if (r.marks[i] === '_') g.fillRect(x, y + lh - 2, cw, 2);
+    }
+    y += lh;
+  }
+  showScreenAge();
+}
+function showScreenAge() {
+  $('screenAge').textContent = !gst ? '' : radio.connected && Date.now() - gst.at < 5000
+    ? 'Live from the radio' : `As of ${new Date(gst.at).toLocaleTimeString()}`;
+}
+function openScreen() {
+  drawScreen();
+  $('screenDlg').showModal();
+  if (radio.connected) radio.send('GST').catch(() => {});
+}
+$('screenBtn').onclick = openScreen;
+$('lcd').onclick = e => { if (!e.target.closest('#addPad')) openScreen(); };
+$('screenClose').onclick = () => $('screenDlg').close();
+setInterval(() => { if ($('screenDlg').open) showScreenAge(); }, 1000);
+$('screenSave').onclick = () => {
+  if (!gst) return toast('Nothing from the radio yet');
+  const d = new Date(gst.at), p = n => String(n).padStart(2, '0');
+  const name = `SDS150 ${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}.${p(d.getMinutes())}.${p(d.getSeconds())}.png`;
+  $('screenCanvas').toBlob(b => saveFile(new File([b], name, { type: 'image/png' })), 'image/png');
 };
 $('import').onclick = () => $('file').click();
 $('file').onchange = async () => {

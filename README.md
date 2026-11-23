@@ -38,6 +38,8 @@ real iPhone: <https://www.youtube.com/watch?v=9H9LK626PJc>
   make it a pad with one more tap.
 - **Audio.** The SDS150 sends its sound over Bluetooth; ScanPad plays it on the
   device you're holding.
+- **The radio's whole screen**, battery and all, when the radio is out of
+  sight. Save it as a picture.
 - **Ready-made pad sets** for nine US cities, plus nationwide and military
   air sets, picked from a list.
 - **Your pads stay on your device**, and move to another one with Export and
@@ -183,6 +185,15 @@ system names from its screen as you scan, and you can type the rest.
 Browsers only start sound after a tap, so this needs one each time you open
 the page. The radio sends its sound in step with what it's asked, so while
 audio is on ScanPad asks for the radio's screen four times a second.
+
+### See the radio's whole screen
+
+Tap the display strip at the top, or **⋯ → Radio screen**. It shows every
+row of the SDS150's screen: volume, squelch, the number tag, system,
+department, channel, frequency, battery voltage, RSSI and the soft keys.
+It refreshes every half second while it's open. **Save picture** saves a PNG
+(on a phone, it opens the share sheet, with Save Image and Save to Files).
+Icons on the radio's screen don't come through, only the text.
 
 ### Change banks
 
