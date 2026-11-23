@@ -253,13 +253,13 @@
 <script type="module">
 // Bump ?v= whenever sds150.js changes: browsers (Bluefy especially) keep the
 // old module for up to 10 minutes otherwise, and pair it with the new page.
-import { SDS150, mhzToSteps, parseScreen, parseTag } from './sds150.js?v=11';
+import { SDS150, mhzToSteps, parseScreen, parseTag } from './sds150.js?v=12';
 import { Speaker } from './speaker.js?v=4';
 
 // The page's version: year.month.day, plus .2, .3 for a second or third
 // change that day. Bump it with every change, so About can tell a cached copy
 // from the newest one.
-const VERSION = '2026.11.23';
+const VERSION = '2026.11.23.2';
 
 const BANKS = ['A', 'B', 'C', 'D'];
 const COLORS = ['#ff5a36', '#ffb02e', '#ffe04a', '#5ad16b', '#2ec4b6', '#3a8dff', '#9b6bff', '#ff5ab4', '#c8c8c8'];
@@ -576,7 +576,7 @@ function renderGrid() {
       el.querySelector('.freq').textContent = flipping.has(p.qk) ? 'Switching…' : isLive(p) ? 'SCANNING' : 'Scan only this';
       el.querySelector('.tag').textContent = `▶ ${p.qk}`;
     } else if (p && p.kind === 'qk') {
-      el.querySelector('.freq').textContent = { on: 'ON', off: 'OFF', busy: 'Switching…' }[switchState(p.qk)] || '—';
+      el.querySelector('.freq').textContent = { on: 'ON', off: 'OFF', none: 'OFF', busy: 'Switching…' }[switchState(p.qk)] || '—';
       el.querySelector('.tag').textContent = `⏻ ${p.qk}`;
     } else {
       el.querySelector('.freq').textContent = p && p.mhz ? [fmtMhz(p.mhz), p.mode].filter(Boolean).join(' ') : '';
@@ -821,12 +821,13 @@ function renderQk() {
   if (!states) return $('qkRows').replaceChildren(note(switchErrors.get(lv) ? `Couldn't read the radio. ${switchErrors.get(lv)}` : 'Reading the radio…'));
   const rows = [];
   states.forEach((st, k) => {
-    if (st === 'none') return;
     const qk = lv ? `${lv}.${k}` : String(k);
+    // 0 is also what a list Sentinel wrote with Monitor Off reads as, so keep the ones the user named.
+    if (st === 'none' && !state.names?.[qk]) return;
     const row = document.createElement('div');
     row.className = 'qkRow';
     const btn = (cls, label, onclick) => { const b = document.createElement('button'); b.className = cls; b.textContent = label; b.onclick = onclick; return b; };
-    const s = switchState(qk);
+    const s = switchState(qk) === 'none' ? 'off' : switchState(qk);
     row.append(
       btn('sw' + (s === 'on' ? ' on' : ''), { on: 'ON', off: 'OFF', busy: '…' }[s], () => flipSwitch(qk).catch(e => toast(e.message))),
       btn('label', `${qk}  ${nameOf(qk)}${qk.split('.').length < 3 ? '  ›' : ''}`, () => openLevel(qk)),

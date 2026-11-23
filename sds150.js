@@ -142,8 +142,10 @@ export class SDS150 {
   // Quick keys switch what the radio scans: favorites lists (FQK), the systems
   // in a list (SQK,<list>) and the departments in a system (DQK,<list>,<system>).
   // `path` picks the level: [] for lists, [list] for its systems, [list, system]
-  // for its departments. Each reply is one line of 100 slots, 0 = no such key,
-  // 1 = off, 2 = on; a set sends all 100 back.
+  // for its departments. Each reply is one line of 100 slots, 1 = off, 2 = on
+  // and 0 = no such key, or a list Sentinel wrote with Monitor Off: the two
+  // look the same, so a switch is sent anyway and the radio says if it's wrong.
+  // A set sends all 100 back.
   quickKeys(path) {
     return this._exclusive(() => this._readQuickKeys(path));
   }
@@ -151,10 +153,9 @@ export class SDS150 {
   setQuickKey(path, key, on) {
     return this._exclusive(async () => {
       const states = await this._readQuickKeys(path);
-      if (states[key] === 'none') throw new Error(`Quick key ${key} isn't assigned on the radio`);
       states[key] = on ? 'on' : 'off';
       const reply = await this.ask(`${qkCommand(path)},${states.map(s => QK_STATES.indexOf(s)).join(',')}`, 3000);
-      if (!reply.endsWith(',OK')) throw new Error(`The radio refused the switch (${reply})`);
+      if (!reply.endsWith(',OK')) throw new Error(`The radio refused the switch: is quick key ${key} assigned? (${reply})`);
       // The radio goes deaf for a few seconds while it rebuilds its scan list.
       this.quietUntil = Date.now() + 4000;
       return states;
@@ -166,11 +167,10 @@ export class SDS150 {
   scanOnly(list) {
     return this._exclusive(async () => {
       const states = await this._readQuickKeys([]);
-      if (states[list] === 'none') throw new Error(`Favorites list quick key ${list} isn't assigned on the radio`);
-      const want = states.map((s, k) => s === 'none' ? s : k === list ? 'on' : 'off');
+      const want = states.map((s, k) => k === list ? 'on' : s === 'none' ? s : 'off');
       if (want.some((s, k) => s !== states[k])) {
         const reply = await this.ask(`FQK,${want.map(s => QK_STATES.indexOf(s)).join(',')}`, 3000);
-        if (!reply.endsWith(',OK')) throw new Error(`The radio refused the switch (${reply})`);
+        if (!reply.endsWith(',OK')) throw new Error(`The radio refused the switch: is quick key ${list} assigned? (${reply})`);
         this.quietUntil = Date.now() + 4000;
         await sleep(4000);
       }
