@@ -13,7 +13,8 @@
     {"id": "denver", "name": "Denver", "about": "DEN, Centennial, Rocky Mountain, Denver backup and event channels, Forest Service, State Patrol, rail; by frequency, works on any radio"},
     {"id": "los-angeles", "name": "Los Angeles", "about": "LAX, Burbank, Van Nuys, Santa Monica, Long Beach, LAFD, County Fire, Sheriff, LAPD stations, CHP, marine; by frequency, works on any radio"},
     {"id": "san-francisco", "name": "San Francisco", "about": "SFO, Oakland, San Jose, SFFD and SFPD direct channels, CHP, marine, California interop; by frequency, works on any radio"},
-    {"id": "n2mav-new-york", "name": "New York: N2MAV's radio", "about": "The author's own: NYPD and NYSP, JFK, LaGuardia, by his Sentinel number tags (Police NY = list 1, Aviation NYC = list 2)"},
+    {"id": "n2mav-new-york", "name": "New York: N2MAV's radio", "about": "The author's own: NYPD, NYSP and Westchester police in the clear, JFK, LaGuardia, by his Sentinel number tags (Police NY = list 1, Aviation NYC = list 2)"},
+    {"id": "n2mav-fire-ems", "name": "Fire/EMS NY: N2MAV's radio", "about": "FDNY dispatch, fireground and EMS, Westchester County fire, Yonkers, Mount Vernon, New Rochelle and White Plains fire, by the author's number tags (Fire/EMS NY = list 4)"},
     {"id": "n2mav-ny-airports", "name": "NY area airports: N2MAV's radio", "about": "Newark, Teterboro, Stewart, Westchester, Republic, MacArthur, Gabreski, by the author's number tags"},
     {"id": "n2mav-military", "name": "Military: N2MAV's radio", "about": "The same channels by the author's number tags (Military = list 3)"}
   ]
