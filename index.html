@@ -371,7 +371,7 @@ const radio = new SDS150({
 });
 
 // For poking at the radio from the browser console: scanpad.radio.ask('MDL').
-window.scanpad = { radio, speaker };
+window.scanpad = { radio, speaker, screen: () => gst?.line };
 
 // The radio sends its audio over Bluetooth all the time; this plays it here.
 $('audio').onclick = async () => {
