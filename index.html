@@ -157,8 +157,11 @@
   #screenCtl .gapx { width: 14px; }
   @media (min-width: 900px) and (min-height: 601px) {
     body.docked { display: grid; grid-template-columns: minmax(0, 1fr) min(420px, 32vw); grid-template-rows: auto auto auto 1fr; max-width: none; }
-    body.docked > header, body.docked > #lcd, body.docked > #banks, body.docked > #padArea { grid-column: 1; }
-    body.docked #screenDlg[open] { position: static; transform: none; grid-column: 2; grid-row: 1 / span 4; align-self: start; width: auto; box-shadow: none; max-height: 100%; overflow: auto; }
+    /* The header, strip and bank tabs keep the full width; the screen sits
+       beside the pads, its top level with the first row of pads. */
+    body.docked > header, body.docked > #lcd, body.docked > #banks { grid-column: 1 / -1; }
+    body.docked > #padArea { grid-column: 1; grid-row: 4; }
+    body.docked #screenDlg[open] { position: static; transform: none; grid-column: 2; grid-row: 4; align-self: start; width: auto; box-shadow: none; max-height: 100%; overflow: auto; }
     body.docked #screenHead { cursor: default; }
   }
   @media not ((min-width: 900px) and (min-height: 601px)) { #screenPin { display: none; } }
@@ -288,7 +291,7 @@ import { Speaker } from './speaker.js?v=4';
 // The page's version: year.month.day, plus .2, .3 for a second or third
 // change that day. Bump it with every change, so About can tell a cached copy
 // from the newest one.
-const VERSION = '2026.11.23.4';
+const VERSION = '2026.11.23.5';
 
 const BANKS = ['A', 'B', 'C', 'D'];
 const COLORS = ['#ff5a36', '#ffb02e', '#ffe04a', '#5ad16b', '#2ec4b6', '#3a8dff', '#9b6bff', '#ff5ab4', '#c8c8c8'];
