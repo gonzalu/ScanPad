@@ -18,7 +18,7 @@
       null,
       null,
       null,
-      null,
+      {"kind": "tag", "name": "Park PD Region 12", "label": "NYS Parks", "tag": "1.5.603", "color": "#9b6bff"},
       {"kind": "qk", "name": "Police NY", "qk": "1", "color": "#c8c8c8"},
       {"kind": "qk", "name": "Fire/EMS NY", "qk": "4", "color": "#c8c8c8"},
       {"kind": "qk", "name": "Aviation NYC", "qk": "2", "color": "#c8c8c8"},

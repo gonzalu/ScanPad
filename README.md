@@ -39,13 +39,15 @@ real iPhone: <https://www.youtube.com/watch?v=9H9LK626PJc>
 - **Audio.** The SDS150 sends its sound over Bluetooth; ScanPad plays it on the
   device you're holding.
 - **The radio's whole screen**, battery and all, when the radio is out of
-  sight. Save it as a picture.
+  sight, with **volume and squelch** buttons. Drag it anywhere, or pin it
+  beside the pads. Save it as a picture.
 - **Ready-made pad sets** for ten US cities, plus nationwide and military
   air sets, picked from a list.
 - **Your pads stay on your device**, and move to another one with Export and
   Import.
 - **Follow the radio.** When the scan stops on a channel whose pad is in
   another bank, ScanPad shows that bank.
+- **Drag pads around** in Edit, within a bank or to another one.
 - Swipe between banks on a phone; play it from the keyboard on a PC.
 
 ## Where it runs
@@ -106,6 +108,16 @@ rail on D. See [Pad sets](#pad-sets) for the full list.
 
 **Clear pad** empties it. To fill a pad from whatever the radio is on right
 now, tap **Use what's on now**.
+
+### Rearrange pads
+
+1. Tap **Edit**.
+2. Drag a pad onto another to swap the two, or onto an empty pad to move it
+   there.
+3. To move it to another bank, hold it over that bank's tab for a moment:
+   the bank opens, and you drop it on the pad you want. Or let go right on
+   the tab, and it goes to that bank's first empty pad.
+4. Tap **Done**.
 
 <p align="center"><img src="docs/screenshots/edit-pad.png" width="260" alt="Editing a pad: name LGA Tower, a tagged channel, frequency 118.700, number tag 2.1.201, and a row of colors"></p>
 
@@ -198,6 +210,17 @@ department, channel, frequency, battery voltage, RSSI and the soft keys.
 It refreshes every half second while it's open. **Save picture** saves a PNG
 (on a phone, it opens the share sheet, with Save Image and Save to Files).
 Icons on the radio's screen don't come through, only the text.
+
+The pads keep working while it's open. Drag it by its title bar to put it
+out of the way. On a computer or tablet screen, **📌 Pin** gives it a column
+of its own beside the pads instead; **Unpin** floats it again. ScanPad
+remembers where it was, whether it's pinned, and whether it was open.
+
+### Turn the volume and squelch up or down
+
+Under the radio's screen, **VOL − +** and **SQL − +** change the radio's own
+volume and squelch, with the current setting between them. Squelch goes from
+0 to 15. Handy when the radio is out of reach.
 
 ### Change banks
 
@@ -353,6 +376,7 @@ wrapped in a small binary "PT" frame; see the header of `sds150.js`.
 | Frequency | `QSH,<frequency in 100 Hz steps, 8 digits>`, e.g. `QSH,04708625` for 470.8625 MHz |
 | Tagged channel | `JNT,<list>,<system>,<channel>`; the radio answers `JNT,OK`, or `JNT,NG` if nothing has that tag |
 | ▶ Scan | `JPM,SCN_MODE,0` |
+| Volume, squelch | `VOL,<n>`, `SQL,<n>` (`VOL` and `SQL` alone read them); squelch stops at 15 |
 | Scan switch | `FQK` (lists), `SQK,<list>` (systems), `DQK,<list>,<system>` (departments) |
 | Display strip | `GST` |
 
